@@ -1,0 +1,280 @@
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+}
+
+.container {
+    max-width: 960px;
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    padding: 15px 20px;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.card-header.bg-primary { background-color: #007bff !important; }
+.card-header.bg-info { background-color: #17a2b8 !important; }
+.card-header.bg-success { background-color: #28a745 !important; }
+.card-header.bg-warning { background-color: #ffc107 !important; color: #333 !important; }
+.card-header.bg-danger { background-color: #dc3545 !important; }
+.card-header.bg-secondary { background-color: #6c757d !important; }
+
+.upload-area {
+    border: 2px dashed #007bff;
+    background-color: #e9f5ff;
+    padding: 40px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+}
+
+.upload-area:hover,
+.upload-area.highlight {
+    background-color: #d0eaff;
+    border-color: #0056b3;
+}
+
+.upload-area i {
+    font-size: 3rem;
+    color: #007bff;
+    margin-bottom: 10px;
+}
+
+.preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.preview-item {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.preview-item .delete-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(220, 53, 69, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.preview-item .delete-btn:hover {
+    background-color: #dc3545;
+}
+
+.recognition-result .card-body {
+    display: flex;
+    align-items: center;
+}
+
+.recognition-result img {
+    max-width: 150px;
+    height: auto;
+    margin-right: 20px;
+}
+
+.recognition-result .btn {
+    margin-top: 10px;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    z-index: 1050;
+    display: none;
+}
+
+.loading-overlay .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.loading-overlay p {
+    margin-top: 15px;
+    font-size: 1.2rem;
+}
+
+.table-responsive {
+    margin-top: 20px;
+}
+
+.table th, .table td {
+    vertical-align: middle;
+}
+
+.table .btn-sm {
+    padding: .25rem .5rem;
+    font-size: .875rem;
+    line-height: 1.5;
+    border-radius: .2rem;
+}
+
+.badge {
+    font-size: 0.85em;
+    padding: 0.4em 0.6em;
+    border-radius: .25rem;
+}
+
+/* ---------- Pie Chart (固定正方形) ---------- */
+.chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 420px; /* 可調整 */
+    margin: 0 auto;
+}
+
+/* 強制 canvas 為正方形、由 CSS 控制尺寸 */
+#categoryChart {
+    width: 360px !important;
+    height: 360px !important;
+    aspect-ratio: 1 / 1 !important;
+    display: block;
+    margin: 0 auto;
+}
+
+/* 手機尺寸調整 */
+@media (max-width: 768px) {
+    #categoryChart {
+        width: 280px !important;
+        height: 280px !important;
+    }
+}
+
+/* 若父容器為 flex，確保不會拉伸 canvas */
+.chart-container, .card-body {
+    align-items: center;
+}
+
+/* 讓 canvas 不被全域的 canvas 規則破壞 */
+canvas#categoryChart {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+
+/* 辨識結果 UI 修正 */
+.recognition-item-flex {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.recognition-image-container {
+    flex-shrink: 0;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.recognition-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.recognition-info-container {
+    flex-grow: 1;
+}
+
+.recognition-info-container .card-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+@media (max-width: 768px) {
+    .recognition-item-flex {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    .recognition-image-container {
+        width: 100%;
+        height: auto;
+        max-height: 150px;
+    }
+    .recognition-info-container {
+        text-align: center;
+    }
+}
+/* 強制隱藏所有合併按鈕 - 終極方案 */
+#mergeAllBtn,
+button[id*="merge"],
+button[class*="merge"],
+button:contains("合併"),
+button:contains("merge"),
+.btn:contains("合併"),
+.btn:contains("merge"),
+.d-flex.justify-content-end.mt-3 button,
+.d-flex.justify-content-end button,
+.text-center.mt-3 button {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    left: -9999px !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+}
+
+/* 隱藏包含合併按鈕的整個容器 */
+.d-flex.justify-content-end.mt-3,
+.text-center.mt-3 {
+    display: none !important;
+}

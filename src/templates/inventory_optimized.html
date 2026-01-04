@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>庫存管理 - 超商庫存管理系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory_optimized.css', v=cache_buster) }}">
+</head>
+<body>
+    <!-- 加載動畫 -->
+    <div id="loadingSpinner">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">加載中...</span>
+        </div>
+    </div>
+
+    <div class="container-fluid py-4">
+        <!-- 導航欄 -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 rounded">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold" href="/">🏪 超商庫存管理系統</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/"><i class="bi bi-house"></i> 食品辨識</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/inventory"><i class="bi bi-box-seam"></i> 庫存管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/expiry-management"><i class="bi bi-calendar-x"></i> 即期品管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports"><i class="bi bi-graph-up"></i> 盤點報表</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="advancedMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-star"></i> 高級功能
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="advancedMenu">
+                                <li><a class="dropdown-item" href="/barcode-database"><i class="bi bi-qr-code"></i> 條碼資料庫</a></li>
+                                <li><a class="dropdown-item" href="/inventory-records"><i class="bi bi-list-check"></i> 進出記錄</a></li>
+                                <li><a class="dropdown-item" href="/inventory-alerts"><i class="bi bi-exclamation-triangle"></i> 庫存預警</a></li>
+                                <li><a class="dropdown-item" href="/operation-logs"><i class="bi bi-clock-history"></i> 操作日誌</a></li>
+                                <li><a class="dropdown-item" href="/report-export"><i class="bi bi-file-earmark-pdf"></i> 報表導出</a></li>
+                                <li><a class="dropdown-item" href="/sales-trend"><i class="bi bi-graph-up-arrow"></i> 銷售趨勢</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 頁面標題 -->
+        <header class="mb-4">
+            <h1 class="display-6 fw-bold text-primary"><i class="bi bi-box-seam"></i> 庫存管理</h1>
+            <p class="lead">統一的商品庫存管理系統</p>
+        </header>
+
+        <!-- 統計儀表板 -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-sm-6">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="totalItems">0</h1>
+                        <p class="card-text">總商品數</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="inStockItems">0</h1>
+                        <p class="card-text">在庫商品</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card bg-warning text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="expiringItems">0</h1>
+                        <p class="card-text">即期商品</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card bg-danger text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="expiredItems">0</h1>
+                        <p class="card-text">過期商品</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 銷售結帳區域 -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-credit-card"></i> 銷售結帳</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">商品ID</label>
+                        <input type="number" class="form-control" id="checkoutItemId" placeholder="輸入商品ID">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">數量</label>
+                        <input type="number" class="form-control" id="checkoutQuantity" placeholder="輸入數量" min="1">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-success w-100" onclick="checkout()">
+                            <i class="bi bi-check-circle"></i> 結帳
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 庫存清單 -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-list"></i> 庫存清單</h2>
+            </div>
+            <div class="card-body">
+                <!-- 搜尋和篩選 -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="searchInput" placeholder="搜尋商品名稱或條碼...">
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="statusFilter">
+                            <option value="all">全部狀態</option>
+                            <option value="在庫">在庫</option>
+                            <option value="已售">已售</option>
+                            <option value="下架">下架</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="categoryFilter">
+                            <option value="all">全部分類</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 標籤頁 -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="allTab" data-bs-toggle="tab" data-bs-target="#allPane" type="button" role="tab">
+                            <i class="bi bi-list"></i> 全部
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="inStockTab" data-bs-toggle="tab" data-bs-target="#inStockPane" type="button" role="tab">
+                            <i class="bi bi-check-circle"></i> 在庫
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="expiringTab" data-bs-toggle="tab" data-bs-target="#expiringPane" type="button" role="tab">
+                            <i class="bi bi-exclamation-triangle"></i> 即期
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="expiredTab" data-bs-toggle="tab" data-bs-target="#expiredPane" type="button" role="tab">
+                            <i class="bi bi-x-circle"></i> 過期
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- 表格 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>商品名稱</th>
+                                <th>條碼</th>
+                                <th>分類</th>
+                                <th>架位</th>
+                                <th>數量</th>
+                                <th>單價</th>
+                                <th>狀態</th>
+                                <th>效期</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody">
+                            <tr>
+                                <td colspan="9" class="text-center text-muted">加載中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯商品模態框 -->
+    <div class="modal fade" id="editItemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">編輯商品</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">商品名稱</label>
+                        <input type="text" class="form-control" id="editItemName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">條碼</label>
+                        <input type="text" class="form-control" id="editItemBarcode" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">架位編號</label>
+                        <input type="text" class="form-control" id="editItemLocation" placeholder="如：A1-01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">儲存條件</label>
+                        <select class="form-select" id="editItemCondition">
+                            <option value="冷藏">冷藏</option>
+                            <option value="常溫">常溫</option>
+                            <option value="冷凍">冷凍</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">單位價格</label>
+                        <input type="number" class="form-control" id="editItemPrice" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">商品狀態</label>
+                        <select class="form-select" id="editItemStatus">
+                            <option value="在庫">在庫</option>
+                            <option value="已售">已售</option>
+                            <option value="下架">下架</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/inventory_optimized.js', v=cache_buster) }}"></script>
+</body>
+</html>

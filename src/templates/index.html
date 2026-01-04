@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食品效期辨識與管理系統</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=cache_buster) }}">
+    <!-- 新增：Chart.js 圖表庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container py-4">
+        <!-- 導航欄 -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 rounded">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold" href="/">🏪 超商庫存管理系統</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/"><i class="bi bi-house"></i> 食品辨識</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/inventory"><i class="bi bi-box-seam"></i> 庫存管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/expiry-management"><i class="bi bi-calendar-x"></i> 即期品管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports"><i class="bi bi-graph-up"></i> 盤點報表</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="advancedMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-star"></i> 高級功能
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="advancedMenu">
+                                <li><a class="dropdown-item" href="/barcode-database"><i class="bi bi-qr-code"></i> 條碼資料庫</a></li>
+                                <li><a class="dropdown-item" href="/inventory-records"><i class="bi bi-list-check"></i> 進出記錄</a></li>
+                                <li><a class="dropdown-item" href="/inventory-alerts"><i class="bi bi-exclamation-triangle"></i> 庫存預警</a></li>
+                                <li><a class="dropdown-item" href="/operation-logs"><i class="bi bi-clock-history"></i> 操作日誌</a></li>
+                                <li><a class="dropdown-item" href="/report-export"><i class="bi bi-file-earmark-pdf"></i> 報表導出</a></li>
+                                <li><a class="dropdown-item" href="/sales-trend"><i class="bi bi-graph-up-arrow"></i> 銷售趨勢</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <header class="text-center mb-4">
+            <h1 class="display-5 fw-bold text-primary">食品效期辨識與管理系統</h1>
+            <p class="lead">智能辨識 · 精準管理 · 避免浪費</p>
+        </header>
+
+        <!-- 儀表板統計區 -->
+        <div class="dashboard mb-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white h-100">
+                        <div class="card-body text-center">
+                            <h1 class="display-4" id="totalFoodCount">0</h1>
+                            <p class="card-text">總食品數量</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-warning text-white h-100">
+                        <div class="card-body text-center">
+                            <h1 class="display-4" id="expiring-count">0</h1>
+                            <p class="card-text">即將到期</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-danger text-white h-100">
+                        <div class="card-body text-center">
+                            <h1 class="display-4" id="expiredFoodCount">0</h1>
+                            <p class="card-text">已過期</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 新增：分類統計圖表 -->
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="chart-container-height">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 條碼掃描區 -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-camera"></i> 條碼掃描入庫</h2>
+            </div>
+            <div class="card-body">
+                <!-- 標籤頁 -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="scanner-tab" data-bs-toggle="tab" data-bs-target="#scanner" type="button" role="tab" aria-controls="scanner" aria-selected="true">
+                            <i class="bi bi-camera"></i> 鏡頭掃碼
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="manual-input-tab" data-bs-toggle="tab" data-bs-target="#manual-input" type="button" role="tab" aria-controls="manual-input" aria-selected="false">
+                            <i class="bi bi-keyboard"></i> 手動輸入
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- 鏡頭掃碼標籤頁 -->
+                    <div class="tab-pane fade show active" id="scanner" role="tabpanel" aria-labelledby="scanner-tab">
+                        <div id="scannerContainer" style="background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 15px; display: none;">
+                            <video id="video" autoplay playsinline style="width: 100%; height: auto; display: block;"></video>
+                        </div>
+                        <div id="scannerStatus" style="text-align: center; color: #666; margin-bottom: 15px; display: none;">
+                            <div class="spinner-border spinner-border-sm" role="status" style="color: #667eea;">
+                                <span class="visually-hidden">正在掃描...</span>
+                            </div>
+                            <p>正在掃描條碼...</p>
+                        </div>
+                        <div class="d-flex gap-2 mb-3">
+                            <button id="startScannerBtn" class="btn btn-success flex-grow-1">
+                                <i class="bi bi-play"></i> 開啟鏡頭
+                            </button>
+                            <button id="stopScannerBtn" class="btn btn-danger flex-grow-1" disabled>
+                                <i class="bi bi-stop"></i> 停止掃描
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 手動輸入標籤頁 -->
+                    <div class="tab-pane fade" id="manual-input" role="tabpanel" aria-labelledby="manual-input-tab">
+                        <div class="mb-3">
+                            <label for="manualBarcode" class="form-label">條碼</label>
+                            <input type="text" class="form-control" id="manualBarcode" placeholder="輸入條碼或掃描條碼">
+                        </div>
+                        <button id="searchBarcodeBtn" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i> 查詢條碼
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 掃碼結果 -->
+                <div id="barcodeResult" class="alert alert-info mt-3" style="display: none;">
+                    <h5>掃碼結果</h5>
+                    <div id="barcodeResultContent"></div>
+                    <button id="useBarcodeBtn" class="btn btn-success mt-2">
+                        <i class="bi bi-check"></i> 使用此條碼進行入庫
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖片上傳區 -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-cloud-upload"></i> 上傳食品圖片</h2>
+            </div>
+            <div class="card-body">
+                <div id="uploadArea" class="upload-area mb-3">
+                    <label for="fileInput" class="upload-prompt text-center">
+                        <i class="bi bi-cloud-arrow-up display-4"></i>
+                        <p>點擊或拖放圖片至此處上傳</p>
+                        <small class="text-muted">支援格式：JPG、PNG、JPEG、WebP</small>
+                    </label>
+                    <input type="file" id="fileInput" multiple accept="image/*" class="d-none" aria-label="選擇圖片上傳">
+                </div>
+                
+                <div id="previewContainer" class="row g-3 mb-3"></div>
+                
+                <div class="d-flex justify-content-end">
+                    <button id="clearImagesBtn" class="btn btn-outline-secondary me-2" disabled aria-label="清除所有圖片">
+                        <i class="bi bi-trash"></i> 清除所有圖片
+                    </button>
+                    <button id="recognizeBtn" class="btn btn-primary" disabled aria-label="識別食品">
+                        <i class="bi bi-search"></i> 識別食品
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 辨識結果區 -->
+        <div id="recognitionResults" class="card mb-4 hidden-element">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-list-check"></i> 辨識結果</h2>
+            </div>
+            <div class="card-body">
+                <div id="resultsContainer" class="recognition-results"></div>
+                
+                <!-- 新增：合併所有結果按鈕 -->
+                <div class="d-flex justify-content-end mt-3">
+                    <button id="mergeAllResultsBtn" class="btn btn-success" aria-label="合併所有辨識結果">
+                        <i class="bi bi-arrow-down-square"></i> 合併所有結果
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手動新增/編輯區 -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-pencil-square"></i> 手動新增/編輯</h2>
+            </div>
+            <div class="card-body">
+                <form id="foodForm">
+                    <input type="hidden" id="foodId" autocomplete="off">
+                    <input type="hidden" id="imagePath" autocomplete="off">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="barcode" class="form-label">條碼</label>
+                            <input type="text" class="form-control" id="barcode" placeholder="請輸入條碼" autocomplete="off">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">品名</label>
+                            <input type="text" class="form-control" id="name" placeholder="請輸入品名" required autocomplete="off">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="expiryDate" class="form-label">到期日</label>
+                            <input type="date" class="form-control" id="expiryDate" required autocomplete="off">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="batchNumber" class="form-label">批號（選填）</label>
+                            <input type="text" class="form-control" id="batchNumber" placeholder="請輸入批號" autocomplete="off">
+                        </div>
+                    </div>
+                    
+                    <!-- 分類選擇 -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="category" class="form-label">分類</label>
+                            <select class="form-select" id="category" autocomplete="off">
+                                <option value="乳製品">乳製品</option>
+                                <option value="肉類">肉類</option>
+                                <option value="海鮮">海鮮</option>
+                                <option value="蔬菜">蔬菜</option>
+                                <option value="水果">水果</option>
+                                <option value="飲料">飲料</option>
+                                <option value="零食">零食</option>
+                                <option value="烘焙">烘焙</option>
+                                <option value="調味料">調味料</option>
+                                <option value="冷凍食品">冷凍食品</option>
+                                <option value="其他" selected>其他</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="quantity" class="form-label">數量</label>
+                            <input type="number" class="form-control" id="quantity" value="1" min="0.1" step="0.1" autocomplete="off">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="unit" class="form-label">單位</label>
+                            <select class="form-select" id="unit" autocomplete="off">
+                                <option value="個" selected>個</option>
+                                <option value="包">包</option>
+                                <option value="瓶">瓶</option>
+                                <option value="罐">罐</option>
+                                <option value="盒">盒</option>
+                                <option value="袋">袋</option>
+                                <option value="公斤">公斤</option>
+                                <option value="公克">公克</option>
+                                <option value="毫升">毫升</option>
+                                <option value="升">升</option>
+                                <option value="份">份</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 新增：儲存環境、單價、儲存位置 -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="storageCondition" class="form-label">儲存環境</label>
+                            <select class="form-select" id="storageCondition" autocomplete="off">
+                                <option value="常溫" selected>常溫</option>
+                                <option value="冷藏">冷藏</option>
+                                <option value="冷凍">冷凍</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="unitPrice" class="form-label">單價</label>
+                            <input type="number" class="form-control" id="unitPrice" placeholder="請輸入單價" min="0" step="0.01" autocomplete="off">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="storageLocation" class="form-label">儲存位置（架位編號）</label>
+                            <input type="text" class="form-control" id="storageLocation" placeholder="例：E1、E2、F1" autocomplete="off">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">備註（選填）</label>
+                        <textarea class="form-control" id="notes" rows="2" placeholder="請輸入備註" autocomplete="off"></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="button" id="clearFormBtn" class="btn btn-outline-secondary" aria-label="清除表單內容">
+                            <i class="bi bi-x-circle"></i> 清除表單
+                        </button>
+                        <button type="submit" class="btn btn-success" aria-label="新增或更新食品資料">
+                            <i class="bi bi-download"></i> 新增/更新食品
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 食品清單區 -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-clock-history"></i> 食品清單</h2>
+            </div>
+            <div class="card-body">
+                <!-- 新增：分類篩選 -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="categoryFilter" class="form-label">按分類篩選</label>
+                        <select class="form-select" id="categoryFilter">
+                            <option value="all" selected>全部</option>
+                            <!-- 分類選項將由JavaScript動態填充 -->
+                        </select>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button id="refreshListBtn" class="btn btn-outline-primary" aria-label="重新整理食品清單">
+                            <i class="bi bi-arrow-clockwise"></i> 重新整理資料
+                        </button>
+                    </div>
+                </div>
+                
+                <ul class="nav nav-tabs mb-3" id="foodListTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="expiring-tab" data-bs-toggle="tab" data-bs-target="#expiring" type="button" role="tab" aria-controls="expiring" aria-selected="true">即將到期 (30天內)</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-controls="all" aria-selected="false">所有食品記錄</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="foodListTabContent">
+                    <!-- 即將到期清單 -->
+                    <div class="tab-pane fade show active" id="expiring" role="tabpanel" aria-labelledby="expiring-tab">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>品名</th>
+                                        <th>分類</th>
+                                        <th>數量</th>
+                                        <th>到期日</th>
+                                        <th>批號</th>
+                                        <th>備註</th>
+                                        <th>剩餘天數</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expiringFoodList"></tbody>
+                            </table>
+                        </div>
+                        <div id="expiringEmptyMessage" class="text-center text-muted py-3 hidden-element"></div>
+                    </div>
+                    
+                    <!-- 所有食品記錄清單 -->
+                    <div class="tab-pane fade" id="all" role="tabpanel" aria-labelledby="all-tab">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>品名</th>
+                                        <th>分類</th>
+                                        <th>數量</th>
+                                        <th>到期日</th>
+                                        <th>批號</th>
+                                        <th>備註</th>
+                                        <th>剩餘天數</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allFoodList"></tbody>
+                            </table>
+                        </div>
+                        <div id="allEmptyMessage" class="text-center text-muted py-3 hidden-element"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-5 py-3 text-muted border-top">
+            &copy; 2025 食品效期辨識與管理系統
+        </footer>
+    </div>
+
+    <!-- 載入中覆蓋層 -->
+    <div id="loadingOverlay" class="loading-overlay hidden-element">
+        <div class="spinner-border text-light" role="status"></div>
+        <div id="loadingMessage" class="loading-message">載入中...</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js', v=cache_buster) }}"></script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>盤點報表 - 超商庫存管理系統</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css', v=cache_buster) }}">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 頂部導航 -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">
+                    <i class="bi bi-shop"></i> 超商庫存管理系統
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/inventory">庫存管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/expiry-management">即期品管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/reports">盤點報表</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">食品辨識</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="advancedMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-star"></i> 高級功能
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="advancedMenu">
+                                <li><a class="dropdown-item" href="/barcode-database"><i class="bi bi-qr-code"></i> 條碼資料庫</a></li>
+                                <li><a class="dropdown-item" href="/inventory-records"><i class="bi bi-list-check"></i> 進出記錄</a></li>
+                                <li><a class="dropdown-item" href="/inventory-alerts"><i class="bi bi-exclamation-triangle"></i> 庫存預警</a></li>
+                                <li><a class="dropdown-item" href="/operation-logs"><i class="bi bi-clock-history"></i> 操作日誌</a></li>
+                                <li><a class="dropdown-item" href="/report-export"><i class="bi bi-file-earmark-pdf"></i> 報表導出</a></li>
+                                <li><a class="dropdown-item" href="/sales-trend"><i class="bi bi-graph-up-arrow"></i> 銷售趨勢</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 標題 -->
+        <header class="text-center mb-4">
+            <h1 class="display-5 fw-bold text-info"><i class="bi bi-file-earmark-bar-graph"></i> 盤點報表系統</h1>
+            <p class="lead">日/週/月報表 · 趨勢分析 · 數據對比</p>
+        </header>
+
+        <!-- 報表生成面板 -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h5 mb-0"><i class="bi bi-plus-circle"></i> 生成新報表</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-primary btn-lg w-100" id="generateDailyBtn">
+                                    <i class="bi bi-calendar-day"></i><br>
+                                    <small>生成日報表</small>
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-info btn-lg w-100" id="generateWeeklyBtn">
+                                    <i class="bi bi-calendar-week"></i><br>
+                                    <small>生成週報表</small>
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-success btn-lg w-100" id="generateMonthlyBtn">
+                                    <i class="bi bi-calendar-month"></i><br>
+                                    <small>生成月報表</small>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速統計 -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h3 class="h6 mb-0"><i class="bi bi-speedometer2"></i> 快速統計</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="quickStats" class="text-center text-muted py-3">
+                            點擊「生成報表」查看統計
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 報表列表 -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-list-check"></i> 報表列表</h2>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
+                            全部 <span class="badge bg-secondary" id="allBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily" type="button" role="tab">
+                            日報表 <span class="badge bg-primary" id="dailyBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="weekly-tab" data-bs-toggle="tab" data-bs-target="#weekly" type="button" role="tab">
+                            週報表 <span class="badge bg-info" id="weeklyBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#monthly" type="button" role="tab">
+                            月報表 <span class="badge bg-success" id="monthlyBadge">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="reportTabContent">
+                    <!-- 全部報表 -->
+                    <div class="tab-pane fade show active" id="all" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>報表日期</th>
+                                        <th>報表類型</th>
+                                        <th>商品數</th>
+                                        <th>庫存量</th>
+                                        <th>過期</th>
+                                        <th>即期</th>
+                                        <th>銷售額</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allReportsList"></tbody>
+                            </table>
+                        </div>
+                        <div id="allEmpty" class="text-center text-muted py-3">暫無報表</div>
+                    </div>
+
+                    <!-- 日報表 -->
+                    <div class="tab-pane fade" id="daily" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>報表日期</th>
+                                        <th>商品數</th>
+                                        <th>庫存量</th>
+                                        <th>銷售筆數</th>
+                                        <th>銷售額</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyReportsList"></tbody>
+                            </table>
+                        </div>
+                        <div id="dailyEmpty" class="text-center text-muted py-3">暫無日報表</div>
+                    </div>
+
+                    <!-- 週報表 -->
+                    <div class="tab-pane fade" id="weekly" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>報表日期</th>
+                                        <th>商品數</th>
+                                        <th>庫存量</th>
+                                        <th>銷售筆數</th>
+                                        <th>銷售額</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyReportsList"></tbody>
+                            </table>
+                        </div>
+                        <div id="weeklyEmpty" class="text-center text-muted py-3">暫無週報表</div>
+                    </div>
+
+                    <!-- 月報表 -->
+                    <div class="tab-pane fade" id="monthly" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>報表日期</th>
+                                        <th>商品數</th>
+                                        <th>庫存量</th>
+                                        <th>銷售筆數</th>
+                                        <th>銷售額</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monthlyReportsList"></tbody>
+                            </table>
+                        </div>
+                        <div id="monthlyEmpty" class="text-center text-muted py-3">暫無月報表</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 報表對比面板 -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="h5 mb-0"><i class="bi bi-arrow-left-right"></i> 報表對比分析</h2>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-5">
+                        <label for="compareReport1" class="form-label">第一個報表</label>
+                        <select class="form-select" id="compareReport1">
+                            <option value="">選擇報表...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="compareReport2" class="form-label">第二個報表</label>
+                        <select class="form-select" id="compareReport2">
+                            <option value="">選擇報表...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-warning w-100" id="compareBtn">
+                            <i class="bi bi-arrow-repeat"></i> 對比
+                        </button>
+                    </div>
+                </div>
+
+                <div id="comparisonResult" class="text-center text-muted py-3">
+                    選擇兩個報表進行對比
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-5 py-3 text-muted border-top">
+            &copy; 2025 超商庫存與銷售管理系統
+        </footer>
+    </div>
+
+    <!-- 報表詳情模態框 -->
+    <div class="modal fade" id="reportDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportDetailTitle">報表詳情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="reportDetailContent">
+                    <!-- 詳情將由JavaScript填充 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                    <button type="button" class="btn btn-primary" id="printReportBtn">
+                        <i class="bi bi-printer"></i> 列印
+                    </button>
+                    <button type="button" class="btn btn-success" id="exportReportBtn">
+                        <i class="bi bi-download"></i> 匯出
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入中覆蓋層 -->
+    <div id="loadingOverlay" class="loading-overlay hidden-element">
+        <div class="spinner-border text-light" role="status"></div>
+        <div id="loadingMessage" class="loading-message">載入中...</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/reports.js', v=cache_buster) }}"></script>
+</body>
+</html>

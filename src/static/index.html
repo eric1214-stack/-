@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食品效期管理系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .border-dashed {
+            border-style: dashed !important;
+        }
+        .cursor-pointer {
+            cursor: pointer;
+        }
+        .object-fit-cover {
+            object-fit: cover;
+        }
+        .badge-expired { background-color: #dc3545; color: white; }
+        .badge-expiring { background-color: #ffc107; color: #000; }
+        .badge-normal { background-color: #28a745; color: white; }
+        
+        .preview-item {
+            position: relative;
+            width: 150px;
+        }
+        
+        .preview-item img {
+            height: 150px;
+            object-fit: cover;
+        }
+        
+        .preview-item .btn-remove {
+            position: absolute;
+            top: 0;
+            right: 0;
+            transform: translate(30%, -30%);
+        }
+        
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        
+        .recognition-card {
+            border-left: 4px solid #0dcaf0;
+        }
+        
+        #uploadArea:hover {
+            background-color: #eef3ff !important;
+            border-color: #007bff !important;
+        }
+        
+        /* 強制隱藏所有合併按鈕 */
+        #mergeAllBtn,
+        button[id*="merge"],
+        button:contains("合併"),
+        button:contains("merge") {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            left: -9999px !important;
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 儀表板統計 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">總食品數</h5>
+                        <h2 id="totalFoodCount" class="mb-0">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">即將到期 (30天內)</h5>
+                        <h2 id="expiringCount" class="mb-0">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">已過期</h5>
+                        <h2 id="expiredFoodCount" class="mb-0">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">分類統計</h5>
+                        <div class="chart-container">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左側：圖片上傳與AI辨識 -->
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-cloud-upload"></i> 食品圖片上傳與AI辨識
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- 上傳區域 -->
+                        <div class="mb-3">
+                            <div id="uploadArea" class="border border-dashed rounded p-5 text-center cursor-pointer"
+                                 style="border-color: #6c757d; background: #f8f9fa;">
+                                <i class="bi bi-cloud-upload display-4 text-muted"></i>
+                                <h5 class="mt-2">點擊或拖放圖片到此區域</h5>
+                                <p class="text-muted">支援 JPG、PNG 格式 (最大 5MB)</p>
+                            </div>
+                            <input type="file" id="fileInput" class="d-none" accept="image/jpeg,image/png,image/webp" multiple>
+                        </div>
+
+                        <!-- 圖片預覽 -->
+                        <div id="previewContainer" class="mb-3 d-flex flex-wrap gap-3"></div>
+
+                        <!-- 按鈕區域 -->
+                        <div class="d-flex justify-content-end">
+                            <button id="clearImagesBtn" class="btn btn-outline-danger me-2" disabled>
+                                <i class="bi bi-trash"></i> 清除圖片
+                            </button>
+                            <button id="recognizeBtn" class="btn btn-success me-2" disabled>
+                                <i class="bi bi-robot"></i> AI辨識
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI辨識結果區域 -->
+                <div id="recognitionResultsSection" class="card mb-4" style="display: none;">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">🔍 AI 辨識結果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> 辨識完成，請檢查結果並選擇要合併的項目。
+                        </div>
+                        <div id="recognitionResultsContainer"></div>
+                    </div>
+                </div>
+
+                <!-- 手動新增食品表單 -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-plus-circle"></i> 手動新增食品
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="foodForm">
+                            <input type="hidden" id="foodId">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label">食品名稱 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="name" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="category" class="form-label">分類 <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="category" required>
+                                        <option value="飲料">飲料</option>
+                                        <option value="罐頭">罐頭</option>
+                                        <option value="零食">零食</option>
+                                        <option value="乳製品">乳製品</option>
+                                        <option value="肉類">肉類</option>
+                                        <option value="蔬菜">蔬菜</option>
+                                        <option value="水果">水果</option>
+                                        <option value="烘焙">烘焙</option>
+                                        <option value="調味料">調味料</option>
+                                        <option value="冷凍食品">冷凍食品</option>
+                                        <option value="其他" selected>其他</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="expiryDate" class="form-label">到期日 <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="expiryDate" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="quantity" class="form-label">數量</label>
+                                    <input type="number" class="form-control" id="quantity" value="1" min="1" max="1000">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="barcode" class="form-label">條碼 (選填)</label>
+                                    <input type="text" class="form-control" id="barcode" placeholder="例如: 123456789">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="unit" class="form-label">單位</label>
+                                    <select class="form-select" id="unit">
+                                        <option value="個" selected>個</option>
+                                        <option value="包">包</option>
+                                        <option value="罐">罐</option>
+                                        <option value="瓶">瓶</option>
+                                        <option value="盒">盒</option>
+                                        <option value="袋">袋</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="batchNumber" class="form-label">批號 (選填)</label>
+                                <input type="text" class="form-control" id="batchNumber" placeholder="例如: A123">
+                            </div>
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">備註 (選填)</label>
+                                <textarea class="form-control" id="notes" rows="2" placeholder="例如: 全脂、無糖等"></textarea>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <button type="button" id="clearFormBtn" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-clockwise"></i> 清除表單
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-lg"></i> 儲存食品
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：食品清單 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-list-ul"></i> 食品清單
+                        </h5>
+                        <button id="refreshBtn" class="btn btn-sm btn-light">
+                            <i class="bi bi-arrow-repeat"></i> 重新整理
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <!-- 篩選標籤 -->
+                        <ul class="nav nav-tabs mb-3">
+                            <li class="nav-item">
+                                <button class="nav-link active tab-link" data-filter="all">全部食品</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link tab-link" data-filter="expiring">即將到期 (30天內)</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link tab-link" data-filter="expired">已過期</button>
+                            </li>
+                        </ul>
+
+                        <!-- 分類篩選 -->
+                        <div class="mb-3">
+                            <label for="categoryFilter" class="form-label">按分類篩選</label>
+                            <select id="categoryFilter" class="form-select">
+                                <option value="all">所有類別</option>
+                            </select>
+                        </div>
+
+                        <!-- 食品表格 -->
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>食品名稱</th>
+                                        <th>分類</th>
+                                        <th>批號</th>
+                                        <th>數量</th>
+                                        <th>到期日</th>
+                                        <th>備註</th>
+                                        <th>狀態</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="foodTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted">載入中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入中遮罩 -->
+    <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-none justify-content-center align-items-center" style="z-index: 9999;">
+        <div class="bg-white rounded p-4 text-center">
+            <div class="spinner-border text-primary mb-2"></div>
+            <div id="loadingMessage">處理中...</div>
+        </div>
+    </div>
+
+    <!-- 詳細資訊 Modal -->
+    <div class="modal fade" id="foodDetailModal" tabindex="-1" aria-labelledby="foodDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="foodDetailModalLabel">食品詳細資訊</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">食品名稱</label>
+                                <p id="detailName" class="form-control-plaintext"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">條碼</label>
+                                <p id="detailBarcode" class="form-control-plaintext"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">分類</label>
+                                <p id="detailCategory" class="form-control-plaintext"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">數量</label>
+                                <p id="detailQuantity" class="form-control-plaintext"></p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">批號</label>
+                                <p id="detailBatchNumber" class="form-control-plaintext"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">備註</label>
+                                <p id="detailNotes" class="form-control-plaintext"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">到期日</label>
+                                <p id="detailExpiryDate" class="form-control-plaintext"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">剩餘天數</label>
+                                <p id="detailRemainingDays" class="form-control-plaintext"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

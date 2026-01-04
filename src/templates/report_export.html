@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>報表導出 - 超商庫存管理系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container-main {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding-top: 90px; /* 為固定導航欄留出空間 */
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px;
+        }
+
+        .card-header h2 {
+            font-size: 1.3em;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        /* 報表卡片 */
+        .report-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .report-card h3 {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .report-card p {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+        }
+
+        .report-icon {
+            font-size: 1.5em;
+            color: #667eea;
+        }
+
+        /* 表單 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* 按鈕 */
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+
+        .btn-export {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* 警告消息 */
+        .alert {
+            border-radius: 8px;
+            border: none;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* 加載動畫 */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .card-body {
+                padding: 20px;
+            }
+
+            .report-card {
+                padding: 20px;
+            }
+
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.9em;
+            }
+        }
+
+        /* 格式選擇 */
+        .format-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .format-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .format-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .format-btn:hover {
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 20px 30px; background: white; border-bottom: 1px solid #eee; position: fixed; top: 0; left: 0; right: 0; z-index: 1000;">
+        <a href="/" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s ease;" onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
+            ← 返回主頁
+        </a>
+    </div>
+    <div class="container-main">
+        <!-- 頭部 -->
+        <div class="header">
+            <h1><i class="bi bi-file-earmark-pdf"></i> 報表導出系統</h1>
+            <p>導出各類報表為PDF或Excel格式，方便數據分析和分享</p>
+        </div>
+
+        <!-- 庫存摘要報表 -->
+        <div class="report-card">
+            <h3>
+                <i class="bi bi-box report-icon"></i>
+                庫存摘要報表
+            </h3>
+            <p>導出當前庫存狀態、按分類統計和商品詳情的完整報表</p>
+            
+            <div class="form-group">
+                <label>選擇導出格式</label>
+                <div class="format-selector">
+                    <button class="format-btn active" onclick="selectFormat(this, 'inventory', 'pdf')">
+                        <i class="bi bi-file-pdf"></i> PDF
+                    </button>
+                    <button class="format-btn" onclick="selectFormat(this, 'inventory', 'excel')">
+                        <i class="bi bi-file-excel"></i> Excel
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-export" onclick="exportReport('inventory', 'pdf')">
+                <i class="bi bi-download"></i> 導出庫存報表
+            </button>
+        </div>
+
+        <!-- 銷售報表 -->
+        <div class="report-card">
+            <h3>
+                <i class="bi bi-receipt report-icon"></i>
+                銷售報表
+            </h3>
+            <p>導出指定時間範圍內的銷售記錄、統計數據和趨勢分析</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>開始日期</label>
+                        <input type="date" id="salesStartDate" class="form-control">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>結束日期</label>
+                        <input type="date" id="salesEndDate" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>選擇導出格式</label>
+                <div class="format-selector">
+                    <button class="format-btn active" onclick="selectFormat(this, 'sales', 'pdf')">
+                        <i class="bi bi-file-pdf"></i> PDF
+                    </button>
+                    <button class="format-btn" onclick="selectFormat(this, 'sales', 'excel')">
+                        <i class="bi bi-file-excel"></i> Excel
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-export" onclick="exportReport('sales', 'pdf')">
+                <i class="bi bi-download"></i> 導出銷售報表
+            </button>
+        </div>
+
+        <!-- 操作日誌報表 -->
+        <div class="report-card">
+            <h3>
+                <i class="bi bi-clock-history report-icon"></i>
+                操作日誌報表
+            </h3>
+            <p>導出系統操作日誌，用於審計和合規性檢查</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>開始日期</label>
+                        <input type="date" id="logStartDate" class="form-control">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>結束日期</label>
+                        <input type="date" id="logEndDate" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>選擇導出格式</label>
+                <div class="format-selector">
+                    <button class="format-btn active" onclick="selectFormat(this, 'log', 'csv')">
+                        <i class="bi bi-file-text"></i> CSV
+                    </button>
+                    <button class="format-btn" onclick="selectFormat(this, 'log', 'excel')">
+                        <i class="bi bi-file-excel"></i> Excel
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-export" onclick="exportReport('log', 'csv')">
+                <i class="bi bi-download"></i> 導出操作日誌
+            </button>
+        </div>
+
+        <!-- 提示消息 -->
+        <div id="message" class="alert" style="display: none;"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedFormats = {
+            inventory: 'pdf',
+            sales: 'pdf',
+            log: 'csv'
+        };
+
+        // 選擇格式
+        function selectFormat(button, reportType, format) {
+            // 移除同組其他按鈕的active類
+            button.parentElement.querySelectorAll('.format-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // 添加active類到當前按鈕
+            button.classList.add('active');
+            // 更新選擇
+            selectedFormats[reportType] = format;
+        }
+
+        // 導出報表
+        async function exportReport(reportType, defaultFormat) {
+            try {
+                const format = selectedFormats[reportType] || defaultFormat;
+                let url = '';
+                
+                // 顯示加載狀態
+                showMessage('正在導出報表...', 'info');
+
+                switch(reportType) {
+                    case 'inventory':
+                        url = `/api/reports/inventory-summary?format=${format}`;
+                        break;
+                    case 'sales':
+                        const salesStartDate = document.getElementById('salesStartDate').value;
+                        const salesEndDate = document.getElementById('salesEndDate').value;
+                        url = `/api/reports/sales-report?format=${format}`;
+                        if (salesStartDate) url += `&start_date=${salesStartDate}`;
+                        if (salesEndDate) url += `&end_date=${salesEndDate}`;
+                        break;
+                    case 'log':
+                        const logStartDate = document.getElementById('logStartDate').value;
+                        const logEndDate = document.getElementById('logEndDate').value;
+                        url = `/api/reports/operation-log?format=${format}`;
+                        if (logStartDate) url += `&start_date=${logStartDate}`;
+                        if (logEndDate) url += `&end_date=${logEndDate}`;
+                        break;
+                }
+
+                // 創建臨時下載鏈接
+                const link = document.createElement('a');
+                link.href = url;
+                link.click();
+
+                showMessage('報表已導出成功！', 'success');
+            } catch (err) {
+                console.error('導出失敗:', err);
+                showMessage('導出失敗: ' + err.message, 'danger');
+            }
+        }
+
+        // 顯示消息
+        function showMessage(message, type) {
+            const element = document.getElementById('message');
+            element.textContent = message;
+            element.className = `alert alert-${type}`;
+            element.style.display = 'block';
+
+            // 3秒後自動隱藏成功和信息消息
+            if (type !== 'danger') {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // 初始化日期選擇器
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+            // 設定默認日期
+            document.getElementById('salesStartDate').valueAsDate = thirtyDaysAgo;
+            document.getElementById('salesEndDate').valueAsDate = today;
+            document.getElementById('logStartDate').valueAsDate = thirtyDaysAgo;
+            document.getElementById('logEndDate').valueAsDate = today;
+        });
+    </script>
+</body>
+</html>

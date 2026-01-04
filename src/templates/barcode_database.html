@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>條碼資料庫管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1em;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button:hover {
+            color: #667eea;
+        }
+        
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .filters {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.9em;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            transition: border-color 0.3s ease;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #e9ecef;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        thead {
+            background: #f8f9fa;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .badge-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: 700;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 15px;
+        }
+        
+        .modal-header h2 {
+            color: #333;
+            font-size: 1.5em;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.3s ease;
+        }
+        
+        .close-btn:hover {
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-family: inherit;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .pagination button:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-buttons button {
+            padding: 6px 12px;
+            font-size: 0.85em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .action-buttons .btn-edit {
+            background: #667eea;
+            color: white;
+        }
+        
+        .action-buttons .btn-edit:hover {
+            background: #5568d3;
+        }
+        
+        .action-buttons .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .action-buttons .btn-delete:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="padding: 20px 30px; background: white; border-bottom: 1px solid #eee;">
+            <a href="/" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s ease;" onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
+                <span style="margin-right: 8px;">←</span> 返回主頁
+            </a>
+        </div>
+        
+        <div class="header">
+            <h1>📦 條碼資料庫管理</h1>
+            <p>管理商品條碼與商品信息的對應關係</p>
+        </div>
+        
+        <div class="content">
+            <!-- 警告消息 -->
+            <div id="alertMessage" class="alert"></div>
+            
+            <!-- 標籤頁 -->
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('products')">📋 商品列表</button>
+                <button class="tab-button" onclick="switchTab('statistics')">📊 統計信息</button>
+                <button class="tab-button" onclick="switchTab('create')">➕ 新增商品</button>
+            </div>
+            
+            <!-- 商品列表標籤頁 -->
+            <div id="products" class="tab-content active">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>搜尋（條碼/名稱）</label>
+                        <input type="text" id="filterSearch" placeholder="輸入條碼或商品名稱" onchange="loadProducts()">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>分類</label>
+                        <select id="filterCategory" onchange="loadProducts()">
+                            <option value="all">全部</option>
+                            <option value="乳製品">乳製品</option>
+                            <option value="肉類">肉類</option>
+                            <option value="海鮮">海鮮</option>
+                            <option value="蔬菜">蔬菜</option>
+                            <option value="水果">水果</option>
+                            <option value="飲料">飲料</option>
+                            <option value="零食">零食</option>
+                            <option value="烘焙">烘焙</option>
+                            <option value="調味料">調味料</option>
+                            <option value="冷凍食品">冷凍食品</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>狀態</label>
+                        <select id="filterStatus" onchange="loadProducts()">
+                            <option value="true">啟用</option>
+                            <option value="all">全部</option>
+                            <option value="false">停用</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" style="justify-content: flex-end;">
+                        <button class="btn btn-secondary" onclick="resetFilters()">重置篩選</button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>條碼</th>
+                                <th>商品名稱</th>
+                                <th>分類</th>
+                                <th>單價</th>
+                                <th>儲存條件</th>
+                                <th>狀態</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px;">
+                                    <div class="loading">正在加載商品</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination" id="productsPagination"></div>
+            </div>
+            
+            <!-- 統計信息標籤頁 -->
+            <div id="statistics" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #333;">統計信息</h2>
+                
+                <div class="stats-grid" id="statsGrid">
+                    <div class="loading">正在加載統計數據</div>
+                </div>
+                
+                <h2 style="margin: 30px 0 20px 0; color: #333;">按分類統計</h2>
+                <div class="table-container">
+                    <table id="categoryStatsTable">
+                        <thead>
+                            <tr>
+                                <th>分類</th>
+                                <th>商品數量</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categoryStatsBody">
+                            <tr>
+                                <td colspan="2" style="text-align: center; padding: 40px;">
+                                    <div class="loading">正在加載分類統計</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 新增商品標籤頁 -->
+            <div id="create" class="tab-content">
+                <div style="max-width: 600px;">
+                    <h2 style="margin-bottom: 20px; color: #333;">新增商品</h2>
+                    
+                    <div class="form-group">
+                        <label>條碼 *</label>
+                        <input type="text" id="newBarcode" placeholder="輸入商品條碼" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>商品名稱 *</label>
+                        <input type="text" id="newProductName" placeholder="輸入商品名稱" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>分類 *</label>
+                        <select id="newCategory" required>
+                            <option value="">請選擇</option>
+                            <option value="乳製品">乳製品</option>
+                            <option value="肉類">肉類</option>
+                            <option value="海鮮">海鮮</option>
+                            <option value="蔬菜">蔬菜</option>
+                            <option value="水果">水果</option>
+                            <option value="飲料">飲料</option>
+                            <option value="零食">零食</option>
+                            <option value="烘焙">烘焙</option>
+                            <option value="調味料">調味料</option>
+                            <option value="冷凍食品">冷凍食品</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>單價 *</label>
+                        <input type="number" id="newUnitPrice" step="0.01" placeholder="輸入單價" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>儲存條件</label>
+                        <select id="newStorageCondition">
+                            <option value="常溫">常溫</option>
+                            <option value="冷藏">冷藏</option>
+                            <option value="冷凍">冷凍</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>商品描述</label>
+                        <textarea id="newDescription" placeholder="輸入商品描述（可選）"></textarea>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="createProduct()">新增商品</button>
+                        <button class="btn btn-secondary" onclick="resetForm()">清空表單</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 編輯模態框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>編輯商品</h2>
+                <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label>條碼</label>
+                <input type="text" id="editBarcode" disabled style="background: #f0f0f0;">
+            </div>
+            
+            <div class="form-group">
+                <label>商品名稱 *</label>
+                <input type="text" id="editProductName" required>
+            </div>
+            
+            <div class="form-group">
+                <label>分類 *</label>
+                <select id="editCategory" required>
+                    <option value="乳製品">乳製品</option>
+                    <option value="肉類">肉類</option>
+                    <option value="海鮮">海鮮</option>
+                    <option value="蔬菜">蔬菜</option>
+                    <option value="水果">水果</option>
+                    <option value="飲料">飲料</option>
+                    <option value="零食">零食</option>
+                    <option value="烘焙">烘焙</option>
+                    <option value="調味料">調味料</option>
+                    <option value="冷凍食品">冷凍食品</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>單價 *</label>
+                <input type="number" id="editUnitPrice" step="0.01" required>
+            </div>
+            
+            <div class="form-group">
+                <label>儲存條件</label>
+                <select id="editStorageCondition">
+                    <option value="常溫">常溫</option>
+                    <option value="冷藏">冷藏</option>
+                    <option value="冷凍">冷凍</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>商品描述</label>
+                <textarea id="editDescription"></textarea>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="saveProduct()">保存更改</button>
+                <button class="btn btn-secondary" onclick="closeModal('editModal')">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/barcode';
+        let currentPage = 1;
+        let currentEditId = null;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts();
+            loadStatistics();
+        });
+        
+        // 標籤頁切換
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'statistics') {
+                loadStatistics();
+            }
+        }
+        
+        // 加載商品列表
+        function loadProducts(page = 1) {
+            currentPage = page;
+            
+            const params = new URLSearchParams({
+                search: document.getElementById('filterSearch').value,
+                category: document.getElementById('filterCategory').value,
+                is_active: document.getElementById('filterStatus').value,
+                page: page,
+                per_page: 20
+            });
+            
+            fetch(`${API_BASE}/list?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayProducts(data.products);
+                        displayPagination(data.pages, page);
+                    } else {
+                        showAlert('加載商品失敗: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('加載商品出錯: ' + error, 'error');
+                });
+        }
+        
+        // 顯示商品列表
+        function displayProducts(products) {
+            const tbody = document.getElementById('productsBody');
+            
+            if (products.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px;">
+                            <div class="empty-state">
+                                <p>沒有找到匹配的商品</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = products.map(product => `
+                <tr>
+                    <td><strong>${product.barcode}</strong></td>
+                    <td>${product.product_name}</td>
+                    <td>${product.category}</td>
+                    <td>$${product.unit_price.toFixed(2)}</td>
+                    <td>${product.storage_condition}</td>
+                    <td><span class="badge badge-${product.is_active ? 'active' : 'inactive'}">${product.is_active ? '啟用' : '停用'}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-edit" onclick="editProduct(${product.id})">編輯</button>
+                            <button class="btn-delete" onclick="deleteProduct(${product.id})">刪除</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // 顯示分頁
+        function displayPagination(pages, currentPage) {
+            const pagination = document.getElementById('productsPagination');
+            
+            if (pages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            
+            if (currentPage > 1) {
+                html += `<button onclick="loadProducts(${currentPage - 1})">上一頁</button>`;
+            }
+            
+            for (let i = 1; i <= pages; i++) {
+                if (i === currentPage) {
+                    html += `<button class="active" onclick="loadProducts(${i})">${i}</button>`;
+                } else {
+                    html += `<button onclick="loadProducts(${i})">${i}</button>`;
+                }
+            }
+            
+            if (currentPage < pages) {
+                html += `<button onclick="loadProducts(${currentPage + 1})">下一頁</button>`;
+            }
+            
+            pagination.innerHTML = html;
+        }
+        
+        // 加載統計
+        function loadStatistics() {
+            fetch(`${API_BASE}/statistics`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayStatistics(data.statistics);
+                    }
+                })
+                .catch(error => console.error('加載統計出錯:', error));
+        }
+        
+        // 顯示統計
+        function displayStatistics(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <h3>總商品數</h3>
+                    <div class="value">${stats.total_products}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>啟用商品</h3>
+                    <div class="value">${stats.active_products}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>停用商品</h3>
+                    <div class="value">${stats.inactive_products}</div>
+                </div>
+            `;
+            
+            // 顯示分類統計
+            const categoryBody = document.getElementById('categoryStatsBody');
+            const categoryStats = stats.category_stats;
+            
+            if (Object.keys(categoryStats).length === 0) {
+                categoryBody.innerHTML = `
+                    <tr>
+                        <td colspan="2" style="text-align: center; padding: 40px;">
+                            <div class="empty-state">沒有統計數據</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            categoryBody.innerHTML = Object.entries(categoryStats).map(([category, count]) => `
+                <tr>
+                    <td>${category}</td>
+                    <td>${count}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // 新增商品
+        function createProduct() {
+            const barcode = document.getElementById('newBarcode').value.trim();
+            const productName = document.getElementById('newProductName').value.trim();
+            const category = document.getElementById('newCategory').value;
+            const unitPrice = document.getElementById('newUnitPrice').value;
+            
+            if (!barcode || !productName || !category || !unitPrice) {
+                showAlert('請填寫所有必要字段', 'error');
+                return;
+            }
+            
+            const data = {
+                barcode: barcode,
+                product_name: productName,
+                category: category,
+                unit_price: parseFloat(unitPrice),
+                storage_condition: document.getElementById('newStorageCondition').value,
+                description: document.getElementById('newDescription').value
+            };
+            
+            fetch(`${API_BASE}/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('商品已新增', 'success');
+                        resetForm();
+                        loadProducts(1);
+                    } else {
+                        showAlert('新增失敗: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('新增出錯: ' + error, 'error');
+                });
+        }
+        
+        // 編輯商品
+        function editProduct(productId) {
+            fetch(`${API_BASE}/${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const product = data.product;
+                        currentEditId = productId;
+                        
+                        document.getElementById('editBarcode').value = product.barcode;
+                        document.getElementById('editProductName').value = product.product_name;
+                        document.getElementById('editCategory').value = product.category;
+                        document.getElementById('editUnitPrice').value = product.unit_price;
+                        document.getElementById('editStorageCondition').value = product.storage_condition;
+                        document.getElementById('editDescription').value = product.description || '';
+                        
+                        document.getElementById('editModal').style.display = 'block';
+                    } else {
+                        showAlert('加載商品失敗: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('加載商品出錯: ' + error, 'error');
+                });
+        }
+        
+        // 保存商品
+        function saveProduct() {
+            const data = {
+                product_name: document.getElementById('editProductName').value,
+                category: document.getElementById('editCategory').value,
+                unit_price: parseFloat(document.getElementById('editUnitPrice').value),
+                storage_condition: document.getElementById('editStorageCondition').value,
+                description: document.getElementById('editDescription').value
+            };
+            
+            fetch(`${API_BASE}/${currentEditId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('商品已更新', 'success');
+                        closeModal('editModal');
+                        loadProducts(currentPage);
+                    } else {
+                        showAlert('更新失敗: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('更新出錯: ' + error, 'error');
+                });
+        }
+        
+        // 刪除商品
+        function deleteProduct(productId) {
+            if (!confirm('確定要刪除此商品嗎？')) return;
+            
+            fetch(`${API_BASE}/${productId}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('商品已刪除', 'success');
+                        loadProducts(currentPage);
+                    } else {
+                        showAlert('刪除失敗: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('刪除出錯: ' + error, 'error');
+                });
+        }
+        
+        // 重置篩選
+        function resetFilters() {
+            document.getElementById('filterSearch').value = '';
+            document.getElementById('filterCategory').value = 'all';
+            document.getElementById('filterStatus').value = 'true';
+            loadProducts(1);
+        }
+        
+        // 重置表單
+        function resetForm() {
+            document.getElementById('newBarcode').value = '';
+            document.getElementById('newProductName').value = '';
+            document.getElementById('newCategory').value = '';
+            document.getElementById('newUnitPrice').value = '';
+            document.getElementById('newStorageCondition').value = '常溫';
+            document.getElementById('newDescription').value = '';
+        }
+        
+        // 顯示警告消息
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alertMessage');
+            alertDiv.textContent = message;
+            alertDiv.className = `alert alert-${type}`;
+            
+            setTimeout(() => {
+                alertDiv.className = 'alert';
+            }, 5000);
+        }
+        
+        // 關閉模態框
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // 點擊模態框外部關閉
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>

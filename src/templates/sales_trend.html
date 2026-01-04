@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>銷售趨勢分析 - 超商庫存管理系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container-main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 90px; /* 為固定導航欄留出空間 */
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px;
+        }
+
+        .card-header h2 {
+            font-size: 1.3em;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        /* 統計卡片 */
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #667eea;
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            color: #667eea;
+            font-size: 2em;
+            font-weight: 700;
+        }
+
+        .stat-unit {
+            color: #999;
+            font-size: 0.8em;
+        }
+
+        /* 圖表容器 */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+
+        /* 表單 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* 按鈕 */
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 表格 */
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead {
+            background: #f8f9fa;
+        }
+
+        .table th {
+            border-bottom: 2px solid #667eea;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .card-body {
+                padding: 20px;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .stat-value {
+                font-size: 1.5em;
+            }
+        }
+
+        /* 加載動畫 */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 警告消息 */
+        .alert {
+            border-radius: 8px;
+            border: none;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 20px 30px; background: white; border-bottom: 1px solid #eee; position: fixed; top: 0; left: 0; right: 0; z-index: 1000;">
+        <a href="/" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s ease;" onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
+            ← 返回主頁
+        </a>
+    </div>
+    <div class="container-main">
+        <!-- 頭部 -->
+        <div class="header">
+            <h1><i class="bi bi-graph-up"></i> 銷售趨勢分析</h1>
+            <p>實時查看銷售數據、趨勢分析和商品排行</p>
+        </div>
+
+        <!-- 統計摘要 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>總銷售額</h3>
+                    <div class="stat-value" id="totalSales">$0.00</div>
+                    <div class="stat-unit">過去30天</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>銷售筆數</h3>
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-unit">筆</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>平均交易額</h3>
+                    <div class="stat-value" id="avgTransaction">$0.00</div>
+                    <div class="stat-unit">每筆</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h3>日均銷售額</h3>
+                    <div class="stat-value" id="dailyAvg">$0.00</div>
+                    <div class="stat-unit">每天</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日銷售趨勢 -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-calendar-day"></i> 日銷售趨勢</h2>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>選擇天數</label>
+                            <select id="dailyDays" class="form-select" onchange="loadDailySalesTrend()">
+                                <option value="7">過去7天</option>
+                                <option value="14">過去14天</option>
+                                <option value="30" selected>過去30天</option>
+                                <option value="60">過去60天</option>
+                                <option value="90">過去90天</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="dailySalesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 週銷售趨勢 -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-calendar-week"></i> 週銷售趨勢</h2>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>選擇週數</label>
+                            <select id="weeklyWeeks" class="form-select" onchange="loadWeeklySalesTrend()">
+                                <option value="4">過去4週</option>
+                                <option value="8">過去8週</option>
+                                <option value="12" selected>過去12週</option>
+                                <option value="24">過去24週</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="weeklySalesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 月銷售趨勢 -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-calendar-month"></i> 月銷售趨勢</h2>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="monthlySalesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分類銷售分析 -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-pie-chart"></i> 分類銷售分析</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <canvas id="categorySalesChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>分類</th>
+                                        <th>銷售額</th>
+                                        <th>銷售筆數</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categoryTable">
+                                    <tr><td colspan="3" class="text-center text-muted">加載中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 銷售排行 -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-star"></i> 銷售排行前10</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>商品名稱</th>
+                                <th>分類</th>
+                                <th>銷售筆數</th>
+                                <th>銷售量</th>
+                                <th>銷售額</th>
+                                <th>平均單價</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topProductsTable">
+                            <tr><td colspan="7" class="text-center text-muted">加載中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提示消息 -->
+        <div id="message" class="alert" style="display: none;"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let charts = {};
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSalesSummary();
+            loadDailySalesTrend();
+            loadWeeklySalesTrend();
+            loadMonthlySalesTrend();
+            loadCategorySalesTrend();
+            loadTopProducts();
+        });
+
+        // 加載銷售摘要
+        async function loadSalesSummary() {
+            try {
+                const response = await fetch('/api/sales-trend/summary?days=30');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const summary = data.summary;
+                    document.getElementById('totalSales').textContent = `$${summary.total_amount.toFixed(2)}`;
+                    document.getElementById('totalCount').textContent = summary.total_sales;
+                    document.getElementById('avgTransaction').textContent = `$${summary.average_transaction.toFixed(2)}`;
+                    document.getElementById('dailyAvg').textContent = `$${summary.daily_average_sales.toFixed(2)}`;
+                }
+            } catch (err) {
+                console.error('加載摘要失敗:', err);
+            }
+        }
+
+        // 加載日銷售趨勢
+        async function loadDailySalesTrend() {
+            try {
+                const days = document.getElementById('dailyDays').value;
+                const response = await fetch(`/api/sales-trend/daily?days=${days}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateDailyChart(data.data);
+                }
+            } catch (err) {
+                console.error('加載日趨勢失敗:', err);
+            }
+        }
+
+        // 更新日銷售圖表
+        function updateDailyChart(data) {
+            const ctx = document.getElementById('dailySalesChart').getContext('2d');
+            
+            if (charts.daily) {
+                charts.daily.destroy();
+            }
+            
+            charts.daily = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.date),
+                    datasets: [{
+                        label: '銷售額',
+                        data: data.map(d => d.sales_amount),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 加載週銷售趨勢
+        async function loadWeeklySalesTrend() {
+            try {
+                const weeks = document.getElementById('weeklyWeeks').value;
+                const response = await fetch(`/api/sales-trend/weekly?weeks=${weeks}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateWeeklyChart(data.data);
+                }
+            } catch (err) {
+                console.error('加載週趨勢失敗:', err);
+            }
+        }
+
+        // 更新週銷售圖表
+        function updateWeeklyChart(data) {
+            const ctx = document.getElementById('weeklySalesChart').getContext('2d');
+            
+            if (charts.weekly) {
+                charts.weekly.destroy();
+            }
+            
+            charts.weekly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.week),
+                    datasets: [{
+                        label: '銷售額',
+                        data: data.map(d => d.sales_amount),
+                        backgroundColor: '#667eea',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 加載月銷售趨勢
+        async function loadMonthlySalesTrend() {
+            try {
+                const response = await fetch('/api/sales-trend/monthly?months=12');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateMonthlyChart(data.data);
+                }
+            } catch (err) {
+                console.error('加載月趨勢失敗:', err);
+            }
+        }
+
+        // 更新月銷售圖表
+        function updateMonthlyChart(data) {
+            const ctx = document.getElementById('monthlySalesChart').getContext('2d');
+            
+            if (charts.monthly) {
+                charts.monthly.destroy();
+            }
+            
+            charts.monthly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.month),
+                    datasets: [{
+                        label: '銷售額',
+                        data: data.map(d => d.sales_amount),
+                        backgroundColor: '#764ba2',
+                        borderColor: '#764ba2',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 加載分類銷售趨勢
+        async function loadCategorySalesTrend() {
+            try {
+                const response = await fetch('/api/sales-trend/category?days=30');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateCategoryChart(data.data);
+                    updateCategoryTable(data.data);
+                }
+            } catch (err) {
+                console.error('加載分類趨勢失敗:', err);
+            }
+        }
+
+        // 更新分類銷售圖表
+        function updateCategoryChart(data) {
+            const ctx = document.getElementById('categorySalesChart').getContext('2d');
+            
+            if (charts.category) {
+                charts.category.destroy();
+            }
+            
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140', '#30b0fe'];
+            
+            charts.category = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.category),
+                    datasets: [{
+                        data: data.map(d => d.sales_amount),
+                        backgroundColor: colors.slice(0, data.length),
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新分類表格
+        function updateCategoryTable(data) {
+            const tbody = document.getElementById('categoryTable');
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td>${item.category}</td>
+                    <td>$${item.sales_amount.toFixed(2)}</td>
+                    <td>${item.sales_count}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 加載銷售排行
+        async function loadTopProducts() {
+            try {
+                const response = await fetch('/api/sales-trend/top-products?days=30&limit=10');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateTopProductsTable(data.data);
+                }
+            } catch (err) {
+                console.error('加載排行失敗:', err);
+            }
+        }
+
+        // 更新銷售排行表格
+        function updateTopProductsTable(data) {
+            const tbody = document.getElementById('topProductsTable');
+            tbody.innerHTML = data.map((item, index) => `
+                <tr>
+                    <td><strong>${index + 1}</strong></td>
+                    <td>${item.product_name}</td>
+                    <td>${item.category}</td>
+                    <td>${item.sales_count}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${item.sales_amount.toFixed(2)}</td>
+                    <td>$${item.average_price.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

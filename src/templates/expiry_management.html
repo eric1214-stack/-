@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即期品管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css', v=cache_buster) }}">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 導航欄 -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 rounded">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold" href="/">🏪 超商庫存管理系統</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="切換導航選單" aria-expanded="false">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/"><i class="bi bi-house"></i> 食品辨識</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/inventory"><i class="bi bi-box-seam"></i> 庫存管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/expiry-management"><i class="bi bi-calendar-x"></i> 即期品管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports"><i class="bi bi-graph-up"></i> 盤點報表</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="advancedMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-star"></i> 高級功能
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="advancedMenu">
+                                <li><a class="dropdown-item" href="/barcode-database"><i class="bi bi-qr-code"></i> 條碼資料庫</a></li>
+                                <li><a class="dropdown-item" href="/inventory-records"><i class="bi bi-list-check"></i> 進出記錄</a></li>
+                                <li><a class="dropdown-item" href="/inventory-alerts"><i class="bi bi-exclamation-triangle"></i> 庫存預警</a></li>
+                                <li><a class="dropdown-item" href="/operation-logs"><i class="bi bi-clock-history"></i> 操作日誌</a></li>
+                                <li><a class="dropdown-item" href="/report-export"><i class="bi bi-file-earmark-pdf"></i> 報表導出</a></li>
+                                <li><a class="dropdown-item" href="/sales-trend"><i class="bi bi-graph-up-arrow"></i> 銷售趨勢</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <header class="mb-4">
+            <h1 class="display-6 fw-bold text-primary"><i class="bi bi-calendar-x"></i> 即期品管理</h1>
+            <p class="lead">自動識別和管理即期商品</p>
+        </header>
+
+        <!-- 統計卡片 -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card bg-danger text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="criticalCount">0</h1>
+                        <p class="card-text">緊急（3天內）</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="urgentCount">0</h1>
+                        <p class="card-text">大幅折扣（3-7天）</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="soonCount">0</h1>
+                        <p class="card-text">小幅折扣（7-30天）</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-secondary text-white h-100">
+                    <div class="card-body text-center">
+                        <h1 class="display-5" id="expiredCount">0</h1>
+                        <p class="card-text">已過期</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按鈕 -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <button class="btn btn-danger" onclick="applyDiscount('critical', 0.5)">
+                    <i class="bi bi-tag"></i> 緊急商品：50%折扣
+                </button>
+                <button class="btn btn-warning" onclick="applyDiscount('urgent', 0.3)">
+                    <i class="bi bi-tag"></i> 大幅折扣：30%折扣
+                </button>
+                <button class="btn btn-info" onclick="applyDiscount('soon', 0.1)">
+                    <i class="bi bi-tag"></i> 小幅折扣：10%折扣
+                </button>
+                <button class="btn btn-secondary" onclick="removeExpired()">
+                    <i class="bi bi-trash"></i> 下架過期商品
+                </button>
+            </div>
+        </div>
+
+        <!-- 即期品清單 -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-list"></i> 即期品清單</h2>
+            </div>
+            <div class="card-body">
+                <!-- 標籤頁 -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="critical-tab" data-bs-toggle="tab" data-bs-target="#critical" type="button" role="tab">
+                            緊急 <span class="badge bg-danger" id="criticalBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="urgent-tab" data-bs-toggle="tab" data-bs-target="#urgent" type="button" role="tab">
+                            大幅折扣 <span class="badge bg-warning" id="urgentBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="soon-tab" data-bs-toggle="tab" data-bs-target="#soon" type="button" role="tab">
+                            小幅折扣 <span class="badge bg-info" id="soonBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="expired-tab" data-bs-toggle="tab" data-bs-target="#expired" type="button" role="tab">
+                            已過期 <span class="badge bg-secondary" id="expiredBadge">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- 標籤內容 -->
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="critical" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>批量操作</th>
+                                        <th>商品名稱</th>
+                                        <th>效期</th>
+                                        <th>剩餘天數</th>
+                                        <th>庫存</th>
+                                        <th>建議折扣</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="criticalTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="urgent" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>批量操作</th>
+                                        <th>商品名稱</th>
+                                        <th>效期</th>
+                                        <th>剩餘天數</th>
+                                        <th>庫存</th>
+                                        <th>建議折扣</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="urgentTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="soon" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>批量操作</th>
+                                        <th>商品名稱</th>
+                                        <th>效期</th>
+                                        <th>剩餘天數</th>
+                                        <th>庫存</th>
+                                        <th>建議折扣</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="soonTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="expired" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>商品名稱</th>
+                                        <th>效期</th>
+                                        <th>剩餘天數</th>
+                                        <th>庫存</th>
+                                        <th>狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expiredTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExpiryList();
+        });
+
+        function loadExpiryList() {
+            fetch('/api/expiry/list')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const list = data.expiry_list;
+                        
+                        // 更新計數
+                        document.getElementById('criticalCount').textContent = data.summary.critical_count;
+                        document.getElementById('urgentCount').textContent = data.summary.urgent_count;
+                        document.getElementById('soonCount').textContent = data.summary.soon_count;
+                        document.getElementById('expiredCount').textContent = data.summary.expired_count;
+                        
+                        document.getElementById('criticalBadge').textContent = data.summary.critical_count;
+                        document.getElementById('urgentBadge').textContent = data.summary.urgent_count;
+                        document.getElementById('soonBadge').textContent = data.summary.soon_count;
+                        document.getElementById('expiredBadge').textContent = data.summary.expired_count;
+                        
+                        // 渲染表格
+                        renderTable('critical', list.critical, 0.5);
+                        renderTable('urgent', list.urgent, 0.3);
+                        renderTable('soon', list.soon, 0.1);
+                        renderExpiredTable(list.expired);
+                    }
+                });
+        }
+
+        function renderTable(category, items, suggestedDiscount) {
+            const tbody = document.getElementById(category + 'Table');
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td><input type="checkbox" class="item-checkbox" data-category="${category}" data-id="${item.id}" aria-label="選擇 ${item.name}"></td>
+                    <td>${item.name}</td>
+                    <td>${item.expiry_date}</td>
+                    <td>${item.days_remaining} 天</td>
+                    <td>${item.quantity} ${item.unit}</td>
+                    <td><span class="badge bg-warning">${Math.round(suggestedDiscount * 100)}% 折扣</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderExpiredTable(items) {
+            const tbody = document.getElementById('expiredTable');
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>${item.expiry_date}</td>
+                    <td>${Math.abs(item.days_remaining)} 天</td>
+                    <td>${item.quantity} ${item.unit}</td>
+                    <td><span class="badge bg-danger">已過期</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function selectAll(category) {
+            const checkboxes = document.querySelectorAll(`.item-checkbox[data-category="${category}"]`);
+            const selectAll = document.getElementById(`selectAll${category.charAt(0).toUpperCase() + category.slice(1)}`);
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        function applyDiscount(category, discountRate) {
+            const checkboxes = document.querySelectorAll(`.item-checkbox[data-category="${category}"]:checked`);
+            const itemIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
+            
+            if (itemIds.length === 0) {
+                alert('請先選擇商品');
+                return;
+            }
+            
+            fetch('/api/expiry/apply-discount', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    item_ids: itemIds,
+                    discount_rate: discountRate
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`已應用折扣到 ${data.updated_items.length} 件商品`);
+                    loadExpiryList();
+                } else {
+                    alert('應用折扣失敗：' + data.error);
+                }
+            });
+        }
+
+        function removeExpired() {
+            if (!confirm('確認下架所有過期商品？')) return;
+            
+            fetch('/api/expiry/remove-expired', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    loadExpiryList();
+                } else {
+                    alert('下架失敗：' + data.error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

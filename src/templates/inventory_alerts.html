@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>庫存預警系統 - 超商庫存管理系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container-main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 90px; /* 為固定導航欄留出空間 */
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
+            border: none;
+        }
+
+        .card-header h2 {
+            font-size: 1.3em;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        /* 狀態卡片 */
+        .status-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+        }
+
+        .status-card.critical {
+            border-left-color: #dc3545;
+        }
+
+        .status-card.warning {
+            border-left-color: #ffc107;
+        }
+
+        .status-card.normal {
+            border-left-color: #28a745;
+        }
+
+        .status-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .status-card.critical .status-number {
+            color: #dc3545;
+        }
+
+        .status-card.warning .status-number {
+            color: #ffc107;
+        }
+
+        .status-card.normal .status-number {
+            color: #28a745;
+        }
+
+        .status-label {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        /* 表格樣式 */
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background: #f8f9fa;
+            border-bottom: 2px solid #ddd;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 15px;
+        }
+
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* 徽章 */
+        .badge {
+            padding: 8px 12px;
+            font-weight: 600;
+            border-radius: 6px;
+        }
+
+        .badge-critical {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-normal {
+            background: #28a745;
+            color: white;
+        }
+
+        /* 按鈕 */
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        /* 表單 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* 模態框 */
+        .modal-content {
+            border-radius: 12px;
+            border: none;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            border: none;
+        }
+
+        .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        /* 標籤頁 */
+        .nav-tabs {
+            border-bottom: 2px solid #eee;
+            margin-bottom: 20px;
+        }
+
+        .nav-link {
+            color: #666;
+            border: none;
+            padding: 12px 20px;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .nav-link.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: none;
+        }
+
+        /* 警告消息 */
+        .alert {
+            border-radius: 8px;
+            border: none;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* 圖表容器 */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .card-body {
+                padding: 20px;
+            }
+
+            .status-card {
+                margin-bottom: 15px;
+            }
+
+            .status-number {
+                font-size: 2em;
+            }
+
+            .table {
+                font-size: 0.9em;
+            }
+
+            .table tbody td {
+                padding: 10px;
+            }
+        }
+
+        /* 加載動畫 */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 空狀態 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 20px 30px; background: white; border-bottom: 1px solid #eee; position: fixed; top: 0; left: 0; right: 0; z-index: 1000;">
+        <a href="/" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s ease;" onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
+            ← 返回主頁
+        </a>
+    </div>
+    <div class="container-main">
+        <!-- 頭部 -->
+        <div class="header">
+            <h1><i class="bi bi-exclamation-triangle"></i> 庫存預警系統</h1>
+            <p>監控商品庫存，及時發現庫存不足的商品</p>
+        </div>
+
+        <!-- 狀態摘要 -->
+        <div class="row" id="statusSummary">
+            <div class="col-md-3">
+                <div class="status-card critical">
+                    <i class="bi bi-exclamation-circle" style="font-size: 2em; color: #dc3545;"></i>
+                    <div class="status-number" id="criticalCount">0</div>
+                    <div class="status-label">緊急預警</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="status-card warning">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: #ffc107;"></i>
+                    <div class="status-number" id="warningCount">0</div>
+                    <div class="status-label">庫存預警</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="status-card normal">
+                    <i class="bi bi-check-circle" style="font-size: 2em; color: #28a745;"></i>
+                    <div class="status-number" id="normalCount">0</div>
+                    <div class="status-label">正常庫存</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="status-card">
+                    <i class="bi bi-box" style="font-size: 2em; color: #667eea;"></i>
+                    <div class="status-number" id="totalCount">0</div>
+                    <div class="status-label">監控商品</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 標籤頁 -->
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alerts" type="button" role="tab" aria-controls="alerts" aria-selected="true">
+                    <i class="bi bi-exclamation-triangle"></i> 預警設定
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab" aria-controls="logs" aria-selected="false">
+                    <i class="bi bi-clock-history"></i> 預警日誌
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="statistics-tab" data-bs-toggle="tab" data-bs-target="#statistics" type="button" role="tab" aria-controls="statistics" aria-selected="false">
+                    <i class="bi bi-bar-chart"></i> 統計分析
+                </button>
+            </li>
+        </ul>
+
+        <!-- 標籤頁內容 -->
+        <div class="tab-content">
+            <!-- 預警設定 -->
+            <div class="tab-pane fade show active" id="alerts" role="tabpanel" aria-labelledby="alerts-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2><i class="bi bi-gear"></i> 預警設定管理</h2>
+                            <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addAlertModal">
+                                <i class="bi bi-plus-circle"></i> 新增預警
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="alertsMessage" class="alert" style="display: none;"></div>
+
+                        <!-- 預警設定表格 -->
+                        <div class="table-responsive">
+                            <table class="table" id="alertsTable">
+                                <thead>
+                                    <tr>
+                                        <th>商品名稱</th>
+                                        <th>條碼</th>
+                                        <th>分類</th>
+                                        <th>最低庫存</th>
+                                        <th>預警閾值</th>
+                                        <th>建議補貨量</th>
+                                        <th>狀態</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="alertsTableBody">
+                                    <tr>
+                                        <td colspan="8" style="text-align: center; padding: 40px;">
+                                            <div class="loading-text">
+                                                <div class="spinner"></div>
+                                                <span>加載中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 預警日誌 -->
+            <div class="tab-pane fade" id="logs" role="tabpanel" aria-labelledby="logs-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="bi bi-clock-history"></i> 預警日誌</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="logsMessage" class="alert" style="display: none;"></div>
+
+                        <!-- 篩選 -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <select id="logLevelFilter" class="form-select">
+                                    <option value="">所有級別</option>
+                                    <option value="critical">緊急</option>
+                                    <option value="warning">預警</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select id="logStatusFilter" class="form-select">
+                                    <option value="">所有狀態</option>
+                                    <option value="false">未解決</option>
+                                    <option value="true">已解決</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100" onclick="loadAlertLogs()">
+                                    <i class="bi bi-search"></i> 篩選
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 日誌表格 -->
+                        <div class="table-responsive">
+                            <table class="table" id="logsTable">
+                                <thead>
+                                    <tr>
+                                        <th>商品名稱</th>
+                                        <th>當前庫存</th>
+                                        <th>最低庫存</th>
+                                        <th>級別</th>
+                                        <th>消息</th>
+                                        <th>時間</th>
+                                        <th>狀態</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logsTableBody">
+                                    <tr>
+                                        <td colspan="8" style="text-align: center; padding: 40px;">
+                                            <div class="loading-text">
+                                                <div class="spinner"></div>
+                                                <span>加載中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 統計分析 -->
+            <div class="tab-pane fade" id="statistics" role="tabpanel" aria-labelledby="statistics-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="bi bi-bar-chart"></i> 統計分析</h2>
+                    </div>
+                    <div class="card-body">
+                        <!-- 分類統計 -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h4>按分類統計</h4>
+                                <div class="chart-container">
+                                    <canvas id="categoryChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h4>按級別統計</h4>
+                                <div class="chart-container">
+                                    <canvas id="levelChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 日期趨勢 -->
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <h4>過去7天預警趨勢</h4>
+                                <div class="chart-container" style="height: 400px;">
+                                    <canvas id="trendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增預警模態框 -->
+    <div class="modal fade" id="addAlertModal" tabindex="-1" aria-labelledby="addAlertModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addAlertModalLabel">新增庫存預警</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addAlertForm">
+                        <div class="form-group">
+                            <label for="productName">商品名稱 *</label>
+                            <input type="text" id="productName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="barcode">條碼</label>
+                            <input type="text" id="barcode">
+                        </div>
+                        <div class="form-group">
+                            <label for="category">分類</label>
+                            <select id="category">
+                                <option value="">選擇分類</option>
+                                <option value="乳製品">乳製品</option>
+                                <option value="肉類">肉類</option>
+                                <option value="海鮮">海鮮</option>
+                                <option value="蔬菜">蔬菜</option>
+                                <option value="水果">水果</option>
+                                <option value="飲料">飲料</option>
+                                <option value="零食">零食</option>
+                                <option value="烘焙">烘焙</option>
+                                <option value="調味料">調味料</option>
+                                <option value="冷凍食品">冷凍食品</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="minQuantity">最低庫存量 *</label>
+                            <input type="number" id="minQuantity" value="10" min="1" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="alertThreshold">預警閾值 *</label>
+                            <input type="number" id="alertThreshold" value="5" min="1" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reorderQuantity">建議補貨量 *</label>
+                            <input type="number" id="reorderQuantity" value="50" min="1" step="0.1" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createAlert()">新增</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_BASE = '/api/inventory-alerts';
+        let categoryChart, levelChart, trendChart;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAlertsStatus();
+            loadAlerts();
+            loadAlertLogs();
+            loadStatistics();
+
+            // 每30秒檢查一次預警
+            setInterval(checkAlerts, 30000);
+        });
+
+        // 加載預警狀態
+        async function loadAlertsStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('criticalCount').textContent = data.status.critical;
+                    document.getElementById('warningCount').textContent = data.status.warning;
+                    document.getElementById('normalCount').textContent = data.status.normal;
+                    document.getElementById('totalCount').textContent = data.status.total;
+                }
+            } catch (err) {
+                console.error('加載狀態失敗:', err);
+            }
+        }
+
+        // 加載預警設定
+        async function loadAlerts() {
+            try {
+                const response = await fetch(`${API_BASE}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const tbody = document.getElementById('alertsTableBody');
+                    tbody.innerHTML = '';
+
+                    if (data.alerts.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">暫無預警設定</td></tr>';
+                        return;
+                    }
+
+                    data.alerts.forEach(alert => {
+                        const statusBadge = `<span class="badge badge-${alert.alert_status}">${getStatusText(alert.alert_status)}</span>`;
+                        const row = `
+                            <tr>
+                                <td>${alert.product_name}</td>
+                                <td>${alert.barcode || '-'}</td>
+                                <td>${alert.category || '-'}</td>
+                                <td>${alert.min_quantity}</td>
+                                <td>${alert.alert_threshold}</td>
+                                <td>${alert.reorder_quantity}</td>
+                                <td>${statusBadge}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-secondary" onclick="editAlert(${alert.id})">編輯</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteAlert(${alert.id})">刪除</button>
+                                </td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                }
+            } catch (err) {
+                console.error('加載預警失敗:', err);
+                showMessage('alertsMessage', '加載預警失敗', 'danger');
+            }
+        }
+
+        // 加載預警日誌
+        async function loadAlertLogs() {
+            try {
+                const level = document.getElementById('logLevelFilter').value;
+                const status = document.getElementById('logStatusFilter').value;
+
+                let url = `${API_BASE}/logs`;
+                const params = new URLSearchParams();
+                if (level) params.append('alert_level', level);
+                if (status !== '') params.append('is_resolved', status);
+                if (params.toString()) url += '?' + params.toString();
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    const tbody = document.getElementById('logsTableBody');
+                    tbody.innerHTML = '';
+
+                    if (data.logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">暫無預警日誌</td></tr>';
+                        return;
+                    }
+
+                    data.logs.forEach(log => {
+                        const levelBadge = `<span class="badge badge-${log.alert_level}">${log.alert_level === 'critical' ? '緊急' : '預警'}</span>`;
+                        const statusBadge = log.is_resolved ? '<span class="badge bg-success">已解決</span>' : '<span class="badge bg-warning">未解決</span>';
+                        const row = `
+                            <tr>
+                                <td>${log.product_name}</td>
+                                <td>${log.current_quantity}</td>
+                                <td>${log.min_quantity}</td>
+                                <td>${levelBadge}</td>
+                                <td>${log.alert_message}</td>
+                                <td>${log.created_at}</td>
+                                <td>${statusBadge}</td>
+                                <td>
+                                    ${!log.is_resolved ? `<button class="btn btn-sm btn-success" onclick="resolveLog(${log.id})">標記已解決</button>` : '-'}
+                                </td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                }
+            } catch (err) {
+                console.error('加載日誌失敗:', err);
+                showMessage('logsMessage', '加載日誌失敗', 'danger');
+            }
+        }
+
+        // 加載統計信息
+        async function loadStatistics() {
+            try {
+                const response = await fetch(`${API_BASE}/statistics`);
+                const data = await response.json();
+
+                if (data.success) {
+                    // 分類統計圖表
+                    const categoryLabels = data.category_stats.map(s => s.category || '未分類');
+                    const categoryCounts = data.category_stats.map(s => s.count);
+
+                    if (categoryChart) categoryChart.destroy();
+                    categoryChart = new Chart(document.getElementById('categoryChart'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: categoryLabels,
+                            datasets: [{
+                                data: categoryCounts,
+                                backgroundColor: [
+                                    '#667eea', '#764ba2', '#f093fb', '#4facfe',
+                                    '#43e97b', '#fa709a', '#30cfd0', '#330867'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+
+                    // 級別統計圖表
+                    const levelLabels = data.level_stats.map(s => s.level === 'critical' ? '緊急' : '預警');
+                    const levelCounts = data.level_stats.map(s => s.count);
+
+                    if (levelChart) levelChart.destroy();
+                    levelChart = new Chart(document.getElementById('levelChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: levelLabels,
+                            datasets: [{
+                                label: '預警數量',
+                                data: levelCounts,
+                                backgroundColor: ['#dc3545', '#ffc107']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            }
+                        }
+                    });
+
+                    // 趨勢圖表
+                    const trendDates = data.daily_stats.map(s => s.date);
+                    const trendCounts = data.daily_stats.map(s => s.count);
+
+                    if (trendChart) trendChart.destroy();
+                    trendChart = new Chart(document.getElementById('trendChart'), {
+                        type: 'line',
+                        data: {
+                            labels: trendDates,
+                            datasets: [{
+                                label: '預警數量',
+                                data: trendCounts,
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('加載統計失敗:', err);
+            }
+        }
+
+        // 創建預警
+        async function createAlert() {
+            const data = {
+                product_name: document.getElementById('productName').value,
+                barcode: document.getElementById('barcode').value,
+                category: document.getElementById('category').value,
+                min_quantity: parseFloat(document.getElementById('minQuantity').value),
+                alert_threshold: parseFloat(document.getElementById('alertThreshold').value),
+                reorder_quantity: parseFloat(document.getElementById('reorderQuantity').value)
+            };
+
+            if (!data.product_name) {
+                alert('請填寫商品名稱');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('預警已創建');
+                    document.getElementById('addAlertForm').reset();
+                    bootstrap.Modal.getInstance(document.getElementById('addAlertModal')).hide();
+                    loadAlerts();
+                    loadAlertsStatus();
+                } else {
+                    alert('創建失敗: ' + result.error);
+                }
+            } catch (err) {
+                alert('創建失敗: ' + err.message);
+            }
+        }
+
+        // 刪除預警
+        async function deleteAlert(id) {
+            if (!confirm('確定要刪除此預警嗎？')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/${id}/delete`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('預警已刪除');
+                    loadAlerts();
+                    loadAlertsStatus();
+                } else {
+                    alert('刪除失敗: ' + result.error);
+                }
+            } catch (err) {
+                alert('刪除失敗: ' + err.message);
+            }
+        }
+
+        // 標記日誌為已解決
+        async function resolveLog(id) {
+            try {
+                const response = await fetch(`${API_BASE}/logs/${id}/resolve`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    loadAlertLogs();
+                    loadAlertsStatus();
+                } else {
+                    alert('標記失敗: ' + result.error);
+                }
+            } catch (err) {
+                alert('標記失敗: ' + err.message);
+            }
+        }
+
+        // 檢查預警
+        async function checkAlerts() {
+            try {
+                const response = await fetch(`${API_BASE}/check`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    loadAlertsStatus();
+                    loadAlerts();
+                }
+            } catch (err) {
+                console.error('檢查預警失敗:', err);
+            }
+        }
+
+        // 獲取狀態文本
+        function getStatusText(status) {
+            switch (status) {
+                case 'critical':
+                    return '緊急';
+                case 'warning':
+                    return '預警';
+                case 'normal':
+                    return '正常';
+                default:
+                    return status;
+            }
+        }
+
+        // 顯示消息
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `alert alert-${type}`;
+            element.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
