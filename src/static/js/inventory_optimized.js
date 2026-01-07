@@ -326,10 +326,22 @@ function deleteItem(itemId) {
  * 銷售結帳
  */
 function checkout() {
-    const itemId = parseInt(document.getElementById('checkoutItemId').value);
-    const quantity = parseInt(document.getElementById('checkoutQuantity').value);
+    const checkoutItemIdElement = document.getElementById('checkoutItemId');
+    const checkoutQuantityElement = document.getElementById('checkoutQuantity');
+
+    if (!checkoutItemIdElement) {
+        showError('商品ID輸入框未找到');
+        return;
+    }
+    if (!checkoutQuantityElement) {
+        showError('數量輸入框未找到');
+        return;
+    }
+
+    const itemId = parseInt(checkoutItemIdElement.value);
+    const quantity = parseInt(checkoutQuantityElement.value);
     
-    if (!itemId || !quantity || quantity <= 0) {
+    if (isNaN(itemId) || !quantity || quantity <= 0) {
         showError('請輸入有效的商品ID和數量');
         return;
     }
