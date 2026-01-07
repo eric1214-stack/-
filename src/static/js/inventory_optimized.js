@@ -183,7 +183,7 @@ function renderItemsTable() {
         
         return `
             <tr>
-                <td>${item.id}</td>
+                <td>${item.barcode || '-'}</td>
                 <td>${item.name}</td>
                 <td>${item.barcode || '-'}</td>
                 <td>${item.category}</td>
@@ -334,11 +334,16 @@ function deleteItem(itemId) {
  * 銷售結帳
  */
 function checkout() {
-    const checkoutItemIdElement = document.getElementById('checkoutItemId');
+    const checkoutBarcodeElement = document.getElementById('checkoutBarcode');
+    const checkoutExpiryElement = document.getElementById('checkoutExpiry');
     const checkoutQuantityElement = document.getElementById('checkoutQuantity');
 
-    if (!checkoutItemIdElement) {
-        showError('商品ID輸入框未找到');
+    if (!checkoutBarcodeElement) {
+        showError('條碼輸入框未找到');
+        return;
+    }
+    if (!checkoutExpiryElement) {
+        showError('效期輸入框未找到');
         return;
     }
     if (!checkoutQuantityElement) {
@@ -346,11 +351,12 @@ function checkout() {
         return;
     }
 
-    const itemId = parseInt(checkoutItemIdElement.value);
+    const barcode = checkoutBarcodeElement.value;
+    const expiryDate = checkoutExpiryElement.value;
     const quantity = parseInt(checkoutQuantityElement.value);
     
-    if (isNaN(itemId) || !quantity || quantity <= 0) {
-        showError('請輸入有效的商品ID和數量');
+    if (!barcode || !expiryDate || !quantity || quantity <= 0) {
+        showError('請輸入有效的條碼、效期和數量');
         return;
     }
     
@@ -359,7 +365,11 @@ function checkout() {
     fetch('/api/inventory/checkout', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({item_id: itemId, quantity: quantity})
+        body: JSON.stringify({
+            barcode: barcode,
+            expiry_date: expiryDate,
+            quantity: quantity
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -369,8 +379,9 @@ function checkout() {
                 showWarning('此商品即期，已自動應用折扣');
             }
             loadInventoryData();
-            document.getElementById('checkoutItemId').value = '';
-            document.getElementById('checkoutQuantity').value = '';
+            checkoutBarcodeElement.value = '';
+            checkoutExpiryElement.value = '';
+            checkoutQuantityElement.value = '1';
         } else {
             showError(data.error || '結帳失敗');
         }

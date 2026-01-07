@@ -115,14 +115,19 @@ def checkout():
     """銷售結帳"""
     try:
         data = request.get_json()
-        item_id = data.get('item_id')
+        barcode = data.get('barcode')
+        expiry_date_str = data.get('expiry_date')
         quantity = float(data.get('quantity', 1))
 
-        # Check if item_id is a number or a string
-        if isinstance(item_id, int):
-            item = FoodItem.query.get(item_id)
-        else:
-            item = FoodItem.query.filter_by(barcode=item_id).first()
+        if not barcode or not expiry_date_str:
+            return jsonify({'success': False, 'error': '條碼和效期為必填項'}), 400
+
+        try:
+            expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'error': '無效的日期格式，請使用YYYY-MM-DD'}), 400
+
+        item = FoodItem.query.filter_by(barcode=barcode, expiry_date=expiry_date).first()
         
         if not item:
             return jsonify({'success': False, 'error': '商品不存在'}), 404
@@ -132,7 +137,7 @@ def checkout():
             return jsonify({
                 'success': False,
                 'error': '商品已過期，無法銷售',
-                'item_id': item_id
+                'item_id': item.id
             }), 400
         
         # 檢查庫存
@@ -140,7 +145,7 @@ def checkout():
             return jsonify({
                 'success': False,
                 'error': f'庫存不足，當前庫存: {item.quantity}',
-                'item_id': item_id
+                'item_id': item.id
             }), 400
         
         # 計算折扣
@@ -164,7 +169,7 @@ def checkout():
         return jsonify({
             'success': True,
             'message': '結帳成功',
-            'item_id': item_id,
+            'item_id': item.id,
             'quantity': quantity,
             'unit_price': unit_price,
             'original_amount': original_amount,

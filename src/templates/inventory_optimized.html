@@ -104,24 +104,20 @@
                 <h2 class="h5 mb-0"><i class="bi bi-credit-card"></i> 銷售結帳</h2>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="checkout-section">
-                        <label>到期日期 (必填):</label>
-                        <input type="text" name="expiry_date" required 
-                               placeholder="YYYY/MM/DD" 
-                               pattern="\d{4}/\d{2}/\d{2}" 
-                               title="格式必須為 西元四碼/月兩碼/日兩碼 (例如: 2026/01/04)">
-                    
-                        <label>商品條碼 (必填):</label>
-                        <input type="text" name="barcode" required 
-                               placeholder="請輸入條碼">
-                    </div>
+                <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label">數量</label>
-                        <input type="number" class="form-control" id="checkoutQuantity" placeholder="輸入數量" min="1">
+                        <label for="checkoutBarcode" class="form-label">商品條碼</label>
+                        <input type="text" class="form-control" id="checkoutBarcode" placeholder="掃描或輸入條碼">
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">&nbsp;</label>
+                    <div class="col-md-3">
+                        <label for="checkoutExpiry" class="form-label">到期日期</label>
+                        <input type="text" class="form-control" id="checkoutExpiry" placeholder="YYYY-MM-DD">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="checkoutQuantity" class="form-label">數量</label>
+                        <input type="number" class="form-control" id="checkoutQuantity" value="1" min="1">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
                         <button class="btn btn-success w-100" onclick="checkout()">
                             <i class="bi bi-check-circle"></i> 結帳
                         </button>
@@ -185,7 +181,7 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>條碼</th>
                                 <th>商品名稱</th>
                                 <th>條碼</th>
                                 <th>分類</th>
@@ -199,7 +195,7 @@
                         </thead>
                         <tbody id="itemsTableBody">
                             <tr>
-                                <td colspan="9" class="text-center text-muted">加載中...</td>
+                                <td colspan="10" class="text-center text-muted">載入中...</td>
                             </tr>
                         </tbody>
                     </table>
