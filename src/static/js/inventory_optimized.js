@@ -47,7 +47,14 @@ function loadInventoryData() {
     showLoading(true);
     
     fetch('/api/inventory/items')
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                return response.json();
+            } else {
+                throw new Error('伺服器未返回JSON數據，可能發生錯誤');
+            }
+        })
         .then(data => {
             if (data.success) {
                 currentItems = data.items || [];
@@ -60,7 +67,7 @@ function loadInventoryData() {
         })
         .catch(error => {
             console.error('Error:', error);
-            showError('網絡錯誤，請重試');
+            showError(error.message || '網絡錯誤，請重試');
         })
         .finally(() => {
             showLoading(false);
@@ -166,7 +173,7 @@ function renderItemsTable() {
     if (!tbody) return;
     
     if (filteredItems.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">沒有找到符合條件的商品</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">沒有找到符合條件的商品</td></tr>';
         return;
     }
     
@@ -176,6 +183,7 @@ function renderItemsTable() {
         
         return `
             <tr>
+                <td>${item.id}</td>
                 <td>${item.name}</td>
                 <td>${item.barcode || '-'}</td>
                 <td>${item.category}</td>
