@@ -117,8 +117,13 @@ def checkout():
         data = request.get_json()
         item_id = data.get('item_id')
         quantity = float(data.get('quantity', 1))
+
+        # Check if item_id is a number or a string
+        if isinstance(item_id, int):
+            item = FoodItem.query.get(item_id)
+        else:
+            item = FoodItem.query.filter_by(barcode=item_id).first()
         
-        item = FoodItem.query.get(item_id)
         if not item:
             return jsonify({'success': False, 'error': '商品不存在'}), 404
         
@@ -164,8 +169,7 @@ def checkout():
             'unit_price': unit_price,
             'original_amount': original_amount,
             'discount_rate': discount_rate,
-            'discount_amount': discount_amount,
-            'final_amount': final_amount,
+            'discount_amount': final_amount,
             'remaining_quantity': item.quantity,
             'is_expiring_soon': item.status == 'soon'
         })
