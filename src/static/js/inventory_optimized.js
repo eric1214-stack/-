@@ -185,7 +185,6 @@ function renderItemsTable() {
             <tr>
                 <td>${item.barcode || '-'}</td>
                 <td>${item.name}</td>
-                <td>${item.barcode || '-'}</td>
                 <td>${item.category}</td>
                 <td>${item.storage_location}</td>
                 <td>${item.quantity}</td>
