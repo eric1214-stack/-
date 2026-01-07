@@ -202,23 +202,29 @@ def check_inventory_alerts():
                 alert_level = 'warning'
             
             # 如果狀態改變，更新預警設定
-            if alert_status != alert.alert_status:
-                alert.alert_status = alert_status
+            old_alert_status = alert.alert_status # 儲存舊的預警狀態
+
+            # 總是更新 alert.alert_status 以反映當前狀態
+            alert.alert_status = alert_status
+
+            # 如果處於預警狀態 (非正常)，則更新最後預警時間
+            if alert_level:
                 alert.last_alert_time = datetime.now()
                 
-                # 記錄預警日誌
-                if alert_level:
-                    log = InventoryAlertLog(
-                        alert_id=alert.id,
-                        product_name=alert.product_name,
-                        barcode=alert.barcode,
-                        current_quantity=current_quantity,
-                        min_quantity=alert.min_quantity,
-                        alert_threshold=alert.alert_threshold,
-                        alert_level=alert_level,
-                        alert_message=f"{alert.product_name}庫存不足！當前庫存：{current_quantity}，最低庫存：{alert.min_quantity}"
-                    )
-                    db.session.add(log)
+            # 只有當預警狀態發生變化且處於非正常狀態時才記錄預警日誌
+            if alert_status != old_alert_status and alert_level:
+                log = InventoryAlertLog(
+                    alert_id=alert.id,
+                    product_name=alert.product_name,
+                    barcode=alert.barcode,
+                    current_quantity=current_quantity,
+                    min_quantity=alert.min_quantity,
+                    alert_threshold=alert.alert_threshold,
+                    alert_level=alert_level,
+                    alert_message=f"{alert.product_name}庫存不足！當前庫存：{current_quantity}，最低庫存：{alert.min_quantity}"
+                )
+                db.session.add(log)
+
             
             # 添加到觸發列表
             if alert_level:
