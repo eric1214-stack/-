@@ -57,70 +57,41 @@
         </header>
 
         <!-- 報表生成面板 -->
-        <div class="row mb-4">
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h2 class="h5 mb-0"><i class="bi bi-plus-circle"></i> 生成新報表</h2>
+        <div class="row justify-content-center mb-5">
+            <div class="col-lg-10">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h2 class="h5 mb-0 text-primary fw-bold"><i class="bi bi-plus-circle-dotted"></i> 建立新的盤點分析報表</h2>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-2">
-                            <div class="col-md-3">
-                                <button type="button" class="btn btn-primary btn-lg w-100" id="generateDailyBtn">
-                                    <i class="bi bi-calendar-day"></i><br>
-                                    <small>生成日報表</small>
+                    <div class="card-body p-4">
+                        <div class="row g-4 justify-content-center">
+                            <div class="col-md-3 col-sm-6">
+                                <button type="button" class="btn btn-outline-primary btn-lg w-100 py-4 shadow-sm h-100" id="generateDailyBtn">
+                                    <i class="bi bi-calendar-day fs-2 mb-2 d-block"></i>
+                                    <span class="fw-bold">生成日報表</span>
+                                    <p class="small mb-0 opacity-75">分析當日進銷存數據</p>
                                 </button>
                             </div>
-                            <div class="col-md-3">
-                                <button type="button" class="btn btn-info btn-lg w-100" id="generateWeeklyBtn">
-                                    <i class="bi bi-calendar-week"></i><br>
-                                    <small>生成週報表</small>
+                            <div class="col-md-3 col-sm-6">
+                                <button type="button" class="btn btn-outline-info btn-lg w-100 py-4 shadow-sm h-100" id="generateWeeklyBtn">
+                                    <i class="bi bi-calendar-week fs-2 mb-2 d-block"></i>
+                                    <span class="fw-bold">生成週報表</span>
+                                    <p class="small mb-0 opacity-75">查看本週營運趨勢</p>
                                 </button>
                             </div>
-                            <div class="col-md-3">
-                                <button type="button" class="btn btn-success btn-lg w-100" id="generateMonthlyBtn">
-                                    <i class="bi bi-calendar-month"></i><br>
-                                    <small>生成月報表</small>
+                            <div class="col-md-3 col-sm-6">
+                                <button type="button" class="btn btn-outline-success btn-lg w-100 py-4 shadow-sm h-100" id="generateMonthlyBtn">
+                                    <i class="bi bi-calendar-month fs-2 mb-2 d-block"></i>
+                                    <span class="fw-bold">生成月報表</span>
+                                    <p class="small mb-0 opacity-75">月度財務與庫存總結</p>
                                 </button>
                             </div>
-                            <div class="col-md-3">
-                                <button type="button" class="btn btn-warning btn-lg w-100" id="refreshReportsBtn">
-                                    <i class="bi bi-arrow-clockwise"></i><br>
-                                    <small>刷新總覽數據</small>
+                            <div class="col-md-3 col-sm-6">
+                                <button type="button" class="btn btn-outline-warning btn-lg w-100 py-4 shadow-sm h-100" id="refreshReportsBtn">
+                                    <i class="bi bi-arrow-clockwise fs-2 mb-2 d-block"></i>
+                                    <span class="fw-bold">同步總覽</span>
+                                    <p class="small mb-0 opacity-75">更新報表列表與狀態</p>
                                 </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 快速統計 -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h3 class="h6 mb-0"><i class="bi bi-speedometer2"></i> 快速統計</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="quickStats">
-                            <div class="row g-2 text-center">
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <strong>庫存量</strong>
-                                        <div class="h6" id="statInventoryTotal">0</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="p-2 bg-light rounded">
-                                        <strong>異常數</strong>
-                                        <div class="h6" id="statAnomalyCount">0</div>
-                                    </div>
-                                </div>
-                                <div class="col-12 mt-3">
-                                    <div class="p-2 bg-light rounded">
-                                        <strong>銷售總額</strong>
-                                        <div class="h6" id="statTotalSales">¥0.00</div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -129,9 +100,9 @@
         </div>
 
         <!-- 報表列表 -->
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white">
-                <h2 class="h5 mb-0"><i class="bi bi-list-check"></i> 報表列表</h2>
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-bottom py-3">
+                <h2 class="h5 mb-0 text-info fw-bold"><i class="bi bi-list-check"></i> 歷史報表管理</h2>
             </div>
             <div class="card-body">
                 <ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
@@ -244,9 +215,9 @@
         </div>
 
         <!-- 報表對比面板 -->
-        <div class="card mb-4">
-            <div class="card-header bg-warning text-dark">
-                <h2 class="h5 mb-0"><i class="bi bi-arrow-left-right"></i> 報表對比分析</h2>
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-bottom py-3">
+                <h2 class="h5 mb-0 text-warning fw-bold"><i class="bi bi-arrow-left-right"></i> 報表對比趨勢分析</h2>
             </div>
             <div class="card-body">
                 <div class="row mb-3">

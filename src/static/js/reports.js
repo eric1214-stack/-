@@ -152,9 +152,12 @@ function loadReportsList() {
                     displayQuickStatsFromList(allReports[0]); // Display stats from the first report in the list
                 } else {
                     // Reset quick stats if no reports
-                    document.getElementById('statInventoryTotal').textContent = '0';
-                    document.getElementById('statAnomalyCount').textContent = '0';
-                    document.getElementById('statTotalSales').textContent = '¥0.00';
+                    const invTotal = document.getElementById('statInventoryTotal');
+                    const anomalyCount = document.getElementById('statAnomalyCount');
+                    const totalSales = document.getElementById('statTotalSales');
+                    if (invTotal) invTotal.textContent = '0';
+                    if (anomalyCount) anomalyCount.textContent = '0';
+                    if (totalSales) totalSales.textContent = '¥0.00';
                 }
             } else {
                 alert('載入報表失敗: ' + (data.error || '未知錯誤'));
@@ -391,9 +394,13 @@ function displayReportDetail(report) {
  * @param {object} report - 從 /api/reports/list 獲取的報表數據
  */
 function displayQuickStatsFromList(report) {
-    document.getElementById('statInventoryTotal').textContent = report.inventory_total || '0';
-    document.getElementById('statAnomalyCount').textContent = report.anomaly_count || '0';
-    document.getElementById('statTotalSales').textContent = `¥${(report.total_sales || 0).toFixed(2)}`;
+    const invTotal = document.getElementById('statInventoryTotal');
+    const anomalyCount = document.getElementById('statAnomalyCount');
+    const totalSales = document.getElementById('statTotalSales');
+    
+    if (invTotal) invTotal.textContent = report.inventory_total || '0';
+    if (anomalyCount) anomalyCount.textContent = report.anomaly_count || '0';
+    if (totalSales) totalSales.textContent = `¥${(report.total_sales || 0).toFixed(2)}`;
 }
 
 /**
@@ -401,14 +408,18 @@ function displayQuickStatsFromList(report) {
  * @param {object} reportData - 從 /api/reports/daily, /api/reports/weekly, /api/reports/monthly 獲取的報表數據
  */
 function updateQuickStatsFromGeneratedReport(reportData) {
+    const invTotal = document.getElementById('statInventoryTotal');
+    const anomalyCount = document.getElementById('statAnomalyCount');
+    const totalSales = document.getElementById('statTotalSales');
+    
     if (reportData.inventory_summary) { // 檢查是否是生成的報表，具有嵌套結構
-        document.getElementById('statInventoryTotal').textContent = reportData.inventory_summary.total_quantity || '0';
-        document.getElementById('statAnomalyCount').textContent = reportData.anomaly_summary.total_anomalies || '0';
-        document.getElementById('statTotalSales').textContent = `¥${(reportData.sales_summary?.total_sales_amount || 0).toFixed(2)}`;
+        if (invTotal) invTotal.textContent = reportData.inventory_summary.total_quantity || '0';
+        if (anomalyCount) anomalyCount.textContent = reportData.anomaly_summary.total_anomalies || '0';
+        if (totalSales) totalSales.textContent = `¥${(reportData.sales_summary?.total_sales_amount || 0).toFixed(2)}`;
     } else { // 針對類似 /api/reports/list 返回的扁平結構
-         document.getElementById('statInventoryTotal').textContent = reportData.inventory_total || '0';
-         document.getElementById('statAnomalyCount').textContent = reportData.anomaly_count || '0';
-         document.getElementById('statTotalSales').textContent = `¥${(reportData.total_sales || 0).toFixed(2)}`;
+        if (invTotal) invTotal.textContent = reportData.inventory_total || '0';
+        if (anomalyCount) anomalyCount.textContent = reportData.anomaly_count || '0';
+        if (totalSales) totalSales.textContent = `¥${(reportData.total_sales || 0).toFixed(2)}`;
     }
 }
 
