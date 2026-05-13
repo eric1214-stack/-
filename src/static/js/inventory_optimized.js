@@ -7,6 +7,7 @@ let currentItems = [];
 let filteredItems = [];
 let editingItemId = null;
 let searchTimeout;
+let currentCheckoutItem = null;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -28,6 +29,13 @@ function setupEventListeners() {
     document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
         tab.addEventListener('shown.bs.tab', applyFilters);
     });
+
+    // 掃描按鈕
+    document.getElementById('scanBarcodeBtn')?.addEventListener('click', startScan);
+    document.getElementById('closeScannerBtn')?.addEventListener('click', stopScan);
+
+    // 結帳區效期輸入框失焦事件
+    document.getElementById('checkoutExpiry')?.addEventListener('blur', checkItemForDiscount);
 }
 
 /**
@@ -104,8 +112,8 @@ function applyFilters() {
                 return item.item_status === '在庫';
             
             case 'expiringTab':
-                // 即期: 7天內到期（含今天），且狀態為在庫
-                return item.days_remaining >= 0 && item.days_remaining <= 7 && item.item_status === '在庫';
+                // 即期: 30天內到期（含今天），且狀態為在庫
+                return item.days_remaining >= 0 && item.days_remaining <= 30 && item.item_status === '在庫';
             
             case 'expiredTab':
                 // 過期: 日期已過，或狀態為"下架"
@@ -179,23 +187,23 @@ function renderItemsTable() {
     
     tbody.innerHTML = filteredItems.map(item => {
         const statusBadge = getStatusBadge(item);
-        const expiryWarning = getExpiryWarning(item);
+        const expiryClass = item.days_remaining < 0 ? 'text-danger' : item.days_remaining <= 30 ? 'text-warning' : 'text-dark';
         
         return `
             <tr>
                 <td>${item.barcode || '-'}</td>
                 <td>${item.name}</td>
+                <td><span class="${expiryClass} fw-bold">${item.expiry_date}</span></td>
                 <td>${item.category}</td>
                 <td>${item.storage_location}</td>
                 <td>${item.quantity}</td>
                 <td>$${item.unit_price?.toFixed(2) || '0.00'}</td>
                 <td>${statusBadge}</td>
-                <td>${expiryWarning}</td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="editItem(${item.id})">
                         <i class="bi bi-pencil"></i> 編輯
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteItem(${item.id})">
+                    <button class="btn btn-sm btn-danger" data-id="${item.id}" onclick="deleteItem(this)">
                         <i class="bi bi-trash"></i> 刪除
                     </button>
                 </td>
@@ -303,7 +311,8 @@ function saveEdit() {
 /**
  * 刪除商品
  */
-function deleteItem(itemId) {
+function deleteItem(button) {
+    const itemId = button.dataset.id;
     if (!confirm('確定要刪除此商品嗎？')) return;
     
     showLoading(true);
@@ -329,6 +338,54 @@ function deleteItem(itemId) {
     });
 }
 
+async function checkItemForDiscount() {
+    const barcode = document.getElementById('checkoutBarcode').value;
+    const expiryDate = document.getElementById('checkoutExpiry').value;
+
+    if (!barcode || !expiryDate) {
+        currentCheckoutItem = null;
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/inventory/item-details?barcode=${encodeURIComponent(barcode)}&expiry_date=${encodeURIComponent(expiryDate)}`);
+        const data = await response.json();
+
+        if (data.success) {
+            currentCheckoutItem = {
+                item: data.item,
+                potential_discount: data.potential_discount,
+                discountConfirmed: false
+            };
+            if (data.potential_discount) {
+                showDiscountConfirmation(data.potential_discount);
+            }
+        } else {
+            currentCheckoutItem = null;
+            // Optionally show a message that the item was not found
+        }
+    } catch (error) {
+        console.error('Error checking for discount:', error);
+        currentCheckoutItem = null;
+    }
+}
+
+function showDiscountConfirmation(discount) {
+    const message = `此商品為即期品 "${discount.name}"，是否套用 ${(discount.rate * 100)}% 折扣？`;
+    if (confirm(message)) {
+        if (currentCheckoutItem) {
+            currentCheckoutItem.discountConfirmed = true;
+            showSuccess(`已選擇套用 ${(discount.rate * 100)}% 折扣。`);
+        }
+    } else {
+        if (currentCheckoutItem) {
+            currentCheckoutItem.discountConfirmed = false;
+            showWarning('將以原價結帳。');
+        }
+    }
+}
+
+
 /**
  * 銷售結帳
  */
@@ -337,28 +394,25 @@ function checkout() {
     const checkoutExpiryElement = document.getElementById('checkoutExpiry');
     const checkoutQuantityElement = document.getElementById('checkoutQuantity');
 
-    if (!checkoutBarcodeElement) {
-        showError('條碼輸入框未找到');
-        return;
-    }
-    if (!checkoutExpiryElement) {
-        showError('效期輸入框未找到');
-        return;
-    }
-    if (!checkoutQuantityElement) {
-        showError('數量輸入框未找到');
+    if (!checkoutBarcodeElement || !checkoutExpiryElement || !checkoutQuantityElement) {
+        showError('必要的UI元素未找到');
         return;
     }
 
     const barcode = checkoutBarcodeElement.value;
     const expiryDate = checkoutExpiryElement.value;
-    const quantity = parseInt(checkoutQuantityElement.value);
+    const quantity = parseInt(checkoutQuantityElement.value, 10);
     
     if (!barcode || !expiryDate || !quantity || quantity <= 0) {
         showError('請輸入有效的條碼、效期和數量');
         return;
     }
     
+    let applyDiscount = false;
+    if (currentCheckoutItem && currentCheckoutItem.item.barcode === barcode && currentCheckoutItem.item.expiry_date === expiryDate) {
+        applyDiscount = currentCheckoutItem.discountConfirmed;
+    }
+
     showLoading(true);
     
     fetch('/api/inventory/checkout', {
@@ -367,20 +421,22 @@ function checkout() {
         body: JSON.stringify({
             barcode: barcode,
             expiry_date: expiryDate,
-            quantity: quantity
+            quantity: quantity,
+            apply_discount: applyDiscount
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSuccess(`結帳成功！金額: $${data.final_amount}`);
-            if (data.is_expiring_soon) {
-                showWarning('此商品即期，已自動應用折扣');
+            showSuccess(`結帳成功！金額: $${data.final_amount.toFixed(2)}`);
+            if (data.warning) {
+                showWarning(data.warning);
             }
             loadInventoryData();
             checkoutBarcodeElement.value = '';
             checkoutExpiryElement.value = '';
             checkoutQuantityElement.value = '1';
+            currentCheckoutItem = null; // Reset after checkout
         } else {
             showError(data.error || '結帳失敗');
         }
@@ -451,9 +507,61 @@ function showAlert(message, type) {
     if (container) {
         container.insertBefore(alertDiv, container.firstChild);
         
-        // 3秒後自動關閉
+        // 5秒後自動關閉
         setTimeout(() => {
-            alertDiv.remove();
-        }, 3000);
+            const bootstrapAlert = bootstrap.Alert.getOrCreateInstance(alertDiv);
+            if (bootstrapAlert) {
+                bootstrapAlert.close();
+            }
+        }, 5000);
     }
+}
+
+// Barcode Scanning Logic
+let codeReader = null;
+const videoElement = document.getElementById('video');
+const scannerContainer = document.getElementById('scanner-container');
+const checkoutBarcodeElement = document.getElementById('checkoutBarcode');
+
+async function startScan() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showError('您的瀏覽器不支援相機存取');
+        return;
+    }
+
+    try {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        if (videoInputDevices.length < 1) {
+            showError('找不到可用的攝影機');
+            return;
+        }
+
+        scannerContainer.style.display = 'block';
+        
+        codeReader.decodeFromVideoDevice(videoInputDevices[0].deviceId, videoElement, (result, err) => {
+            if (result) {
+                checkoutBarcodeElement.value = result.text;
+                stopScan();
+                // After scanning, the user will enter the expiry date,
+                // which will trigger the blur event and check for discounts.
+                document.getElementById('checkoutExpiry').focus();
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error(err);
+                showError('掃描時發生錯誤');
+                stopScan();
+            }
+        });
+    } catch (error) {
+        console.error('啟動掃描器失敗', error);
+        showError('無法啟動掃描器');
+    }
+}
+
+function stopScan() {
+    if (codeReader) {
+        codeReader.reset();
+    }
+    scannerContainer.style.display = 'none';
 }

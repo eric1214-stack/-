@@ -109,7 +109,7 @@ def create_alert():
         return jsonify({'error': f'創建預警設定失敗: {str(e)}'}), 500
 
 
-@inventory_alert_bp.route('/api/inventory-alerts/<int:alert_id>/update', methods=['POST'])
+@inventory_alert_bp.route('/api/inventory-alerts/<int:alert_id>', methods=['PUT'])
 def update_alert(alert_id):
     """
     更新庫存預警設定

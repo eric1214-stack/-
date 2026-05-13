@@ -23,7 +23,7 @@ def get_daily_sales_trend():
         
         # 查詢銷售記錄
         records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
+            InventoryRecord.operation_type == 'sale',
             InventoryRecord.created_at >= start_date
         ).all()
         
@@ -38,9 +38,14 @@ def get_daily_sales_trend():
                     'discount': 0,
                     'quantity': 0
                 }
+            
+            gross_amount = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount = record.total_price or 0
+            discount_amount = gross_amount - net_amount
+
             daily_stats[date_key]['count'] += 1
-            daily_stats[date_key]['amount'] += record.total_amount or 0
-            daily_stats[date_key]['discount'] += record.discount or 0
+            daily_stats[date_key]['amount'] += gross_amount
+            daily_stats[date_key]['discount'] += discount_amount
             daily_stats[date_key]['quantity'] += record.quantity or 0
         
         # 轉換為列表格式
@@ -78,7 +83,7 @@ def get_weekly_sales_trend():
         
         # 查詢銷售記錄
         records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
+            InventoryRecord.operation_type == 'sale',
             InventoryRecord.created_at >= start_date
         ).all()
         
@@ -93,9 +98,14 @@ def get_weekly_sales_trend():
                     'discount': 0,
                     'quantity': 0
                 }
+            
+            gross_amount = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount = record.total_price or 0
+            discount_amount = gross_amount - net_amount
+
             weekly_stats[week_key]['count'] += 1
-            weekly_stats[week_key]['amount'] += record.total_amount or 0
-            weekly_stats[week_key]['discount'] += record.discount or 0
+            weekly_stats[week_key]['amount'] += gross_amount
+            weekly_stats[week_key]['discount'] += discount_amount
             weekly_stats[week_key]['quantity'] += record.quantity or 0
         
         # 轉換為列表格式
@@ -133,7 +143,7 @@ def get_monthly_sales_trend():
         
         # 查詢銷售記錄
         records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
+            InventoryRecord.operation_type == 'sale',
             InventoryRecord.created_at >= start_date
         ).all()
         
@@ -148,9 +158,14 @@ def get_monthly_sales_trend():
                     'discount': 0,
                     'quantity': 0
                 }
+            
+            gross_amount = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount = record.total_price or 0
+            discount_amount = gross_amount - net_amount
+
             monthly_stats[month_key]['count'] += 1
-            monthly_stats[month_key]['amount'] += record.total_amount or 0
-            monthly_stats[month_key]['discount'] += record.discount or 0
+            monthly_stats[month_key]['amount'] += gross_amount
+            monthly_stats[month_key]['discount'] += discount_amount
             monthly_stats[month_key]['quantity'] += record.quantity or 0
         
         # 轉換為列表格式
@@ -188,7 +203,7 @@ def get_category_sales_trend():
         
         # 查詢銷售記錄
         records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
+            InventoryRecord.operation_type == 'sale',
             InventoryRecord.created_at >= start_date
         ).all()
         
@@ -200,10 +215,17 @@ def get_category_sales_trend():
                 category_stats[category] = {
                     'count': 0,
                     'amount': 0,
+                    'discount': 0,
                     'quantity': 0
                 }
+            
+            gross_amount = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount = record.total_price or 0
+            discount_amount = gross_amount - net_amount
+
             category_stats[category]['count'] += 1
-            category_stats[category]['amount'] += record.total_amount or 0
+            category_stats[category]['amount'] += gross_amount
+            category_stats[category]['discount'] += discount_amount
             category_stats[category]['quantity'] += record.quantity or 0
         
         # 轉換為列表格式並排序
@@ -214,6 +236,8 @@ def get_category_sales_trend():
                 'category': category,
                 'sales_count': stats['count'],
                 'sales_amount': round(stats['amount'], 2),
+                'discount': round(stats['discount'], 2),
+                'net_amount': round(stats['amount'] - stats['discount'], 2),
                 'quantity': stats['quantity'],
                 'average_price': round(stats['amount'] / stats['quantity'], 2) if stats['quantity'] > 0 else 0
             })
@@ -240,7 +264,7 @@ def get_top_products():
         
         # 查詢銷售記錄
         records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
+            InventoryRecord.operation_type == 'sale',
             InventoryRecord.created_at >= start_date
         ).all()
         
@@ -252,11 +276,18 @@ def get_top_products():
                 product_stats[product] = {
                     'count': 0,
                     'amount': 0,
+                    'discount': 0,
                     'quantity': 0,
                     'category': record.category
                 }
+            
+            gross_amount = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount = record.total_price or 0
+            discount_amount = gross_amount - net_amount
+
             product_stats[product]['count'] += 1
-            product_stats[product]['amount'] += record.total_amount or 0
+            product_stats[product]['amount'] += gross_amount
+            product_stats[product]['discount'] += discount_amount
             product_stats[product]['quantity'] += record.quantity or 0
         
         # 轉換為列表格式並排序
@@ -268,6 +299,8 @@ def get_top_products():
                 'category': stats['category'] or '未分類',
                 'sales_count': stats['count'],
                 'sales_amount': round(stats['amount'], 2),
+                'discount': round(stats['discount'], 2),
+                'net_amount': round(stats['amount'] - stats['discount'], 2),
                 'quantity': stats['quantity'],
                 'average_price': round(stats['amount'] / stats['quantity'], 2) if stats['quantity'] > 0 else 0
             })
@@ -292,33 +325,43 @@ def get_sales_summary():
         
         # 查詢銷售記錄
         records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
+            InventoryRecord.operation_type == 'sale',
             InventoryRecord.created_at >= start_date
         ).all()
         
         # 計算統計信息
-        total_sales = len(records)
-        total_amount = sum(record.total_amount or 0 for record in records)
-        total_discount = sum(record.discount or 0 for record in records)
-        total_quantity = sum(record.quantity or 0 for record in records)
-        net_amount = total_amount - total_discount
+        total_sales_count = len(records)
+        total_gross_amount = 0
+        total_discount_amount = 0
+        total_net_amount = 0
+        total_quantity = 0
+
+        for record in records:
+            gross_amount = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount = record.total_price or 0
+            discount_amount = gross_amount - net_amount
+
+            total_gross_amount += gross_amount
+            total_discount_amount += discount_amount
+            total_net_amount += net_amount
+            total_quantity += (record.quantity or 0)
         
         # 計算平均值
-        avg_transaction = round(total_amount / total_sales, 2) if total_sales > 0 else 0
-        avg_discount_rate = round((total_discount / total_amount * 100), 2) if total_amount > 0 else 0
+        avg_transaction = round(total_gross_amount / total_sales_count, 2) if total_sales_count > 0 else 0
+        avg_discount_rate = round((total_discount_amount / total_gross_amount * 100), 2) if total_gross_amount > 0 else 0
         
         return jsonify({
             'success': True,
             'summary': {
                 'period_days': days,
-                'total_sales': total_sales,
-                'total_amount': round(total_amount, 2),
-                'total_discount': round(total_discount, 2),
-                'net_amount': round(net_amount, 2),
+                'total_sales': total_sales_count,
+                'total_amount': round(total_gross_amount, 2), # This is Gross Amount
+                'total_discount': round(total_discount_amount, 2),
+                'net_amount': round(total_net_amount, 2),
                 'total_quantity': total_quantity,
                 'average_transaction': avg_transaction,
                 'average_discount_rate': avg_discount_rate,
-                'daily_average_sales': round(total_amount / days, 2) if days > 0 else 0
+                'daily_average_sales': round(total_gross_amount / days, 2) if days > 0 else 0
             }
         })
     except Exception as e:
@@ -333,34 +376,36 @@ def get_period_comparison():
     try:
         # 當前期間
         current_days = request.args.get('current_days', 30, type=int)
-        current_start = datetime.now() - timedelta(days=current_days)
+        current_end = datetime.now()
+        current_start = current_end - timedelta(days=current_days)
         
         # 對比期間
         compare_days = request.args.get('compare_days', 30, type=int)
-        compare_start = current_start - timedelta(days=compare_days)
         compare_end = current_start
+        compare_start = compare_end - timedelta(days=compare_days)
         
         # 查詢當前期間銷售
         current_records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
-            InventoryRecord.created_at >= current_start
+            InventoryRecord.operation_type == 'sale',
+            InventoryRecord.created_at >= current_start,
+            InventoryRecord.created_at < current_end
         ).all()
         
         # 查詢對比期間銷售
         compare_records = InventoryRecord.query.filter(
-            InventoryRecord.operation_type == '銷售',
+            InventoryRecord.operation_type == 'sale',
             InventoryRecord.created_at >= compare_start,
             InventoryRecord.created_at < compare_end
         ).all()
         
-        # 計算統計
-        current_amount = sum(r.total_amount or 0 for r in current_records)
-        compare_amount = sum(r.total_amount or 0 for r in compare_records)
+        # 計算統計 (使用 gross amount)
+        current_gross_amount = sum((r.quantity or 0) * (r.unit_price or 0) for r in current_records)
+        compare_gross_amount = sum((r.quantity or 0) * (r.unit_price or 0) for r in compare_records)
         
         # 計算增長率
         growth_rate = 0
-        if compare_amount > 0:
-            growth_rate = round(((current_amount - compare_amount) / compare_amount * 100), 2)
+        if compare_gross_amount > 0:
+            growth_rate = round(((current_gross_amount - compare_gross_amount) / compare_gross_amount * 100), 2)
         
         return jsonify({
             'success': True,
@@ -368,15 +413,15 @@ def get_period_comparison():
                 'current_period': {
                     'days': current_days,
                     'sales_count': len(current_records),
-                    'sales_amount': round(current_amount, 2)
+                    'sales_amount': round(current_gross_amount, 2)
                 },
                 'compare_period': {
                     'days': compare_days,
                     'sales_count': len(compare_records),
-                    'sales_amount': round(compare_amount, 2)
+                    'sales_amount': round(compare_gross_amount, 2)
                 },
                 'growth_rate': growth_rate,
-                'difference': round(current_amount - compare_amount, 2)
+                'difference': round(current_gross_amount - compare_gross_amount, 2)
             }
         })
     except Exception as e:

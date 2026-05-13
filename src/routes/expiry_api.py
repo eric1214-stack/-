@@ -18,26 +18,30 @@ def get_expiry_list():
         
         # 查詢各類即期品
         critical = FoodItem.query.filter(
+            FoodItem.expiry_date >= today,
             FoodItem.expiry_date <= today + timedelta(days=3),
-            FoodItem.expiry_date > today,
-            FoodItem.item_status == '在庫'
+            FoodItem.item_status == '在庫',
+            FoodItem.quantity > 0
         ).all()
         
         urgent = FoodItem.query.filter(
-            FoodItem.expiry_date <= today + timedelta(days=7),
             FoodItem.expiry_date > today + timedelta(days=3),
-            FoodItem.item_status == '在庫'
+            FoodItem.expiry_date <= today + timedelta(days=7),
+            FoodItem.item_status == '在庫',
+            FoodItem.quantity > 0
         ).all()
         
         soon = FoodItem.query.filter(
-            FoodItem.expiry_date <= today + timedelta(days=30),
             FoodItem.expiry_date > today + timedelta(days=7),
-            FoodItem.item_status == '在庫'
+            FoodItem.expiry_date <= today + timedelta(days=30),
+            FoodItem.item_status == '在庫',
+            FoodItem.quantity > 0
         ).all()
         
         expired = FoodItem.query.filter(
             FoodItem.expiry_date < today,
-            FoodItem.item_status == '在庫'
+            FoodItem.item_status == '在庫',
+            FoodItem.quantity > 0
         ).all()
         
         return jsonify({
@@ -109,7 +113,7 @@ def remove_expired():
         today = datetime.now().date()
         
         expired_items = FoodItem.query.filter(
-            FoodItem.expiry_date < today,
+            FoodItem.expiry_date <= today,
             FoodItem.item_status == '在庫'
         ).all()
         

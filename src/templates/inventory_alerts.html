@@ -593,7 +593,7 @@
                         </div>
                         <div class="form-group">
                             <label for="barcode">條碼</label>
-                            <input type="text" id="barcode">
+                            <input type="text" id="barcode" required>
                         </div>
                         <div class="form-group">
                             <label for="category">分類</label>
@@ -629,6 +629,64 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="button" class="btn btn-primary" onclick="createAlert()">新增</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯預警模態框 -->
+    <div class="modal fade" id="editAlertModal" tabindex="-1" aria-labelledby="editAlertModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editAlertModalLabel">編輯庫存預警</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editAlertForm">
+                        <input type="hidden" id="editAlertId"> <!-- Hidden field for alert ID -->
+                        <div class="form-group">
+                            <label for="editProductName">商品名稱 *</label>
+                            <input type="text" id="editProductName" required readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="editBarcode">條碼</label>
+                            <input type="text" id="editBarcode" required readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="editCategory">分類</label>
+                            <select id="editCategory">
+                                <option value="">選擇分類</option>
+                                <option value="乳製品">乳製品</option>
+                                <option value="肉類">肉類</option>
+                                <option value="海鮮">海鮮</option>
+                                <option value="蔬菜">蔬菜</option>
+                                <option value="水果">水果</option>
+                                <option value="飲料">飲料</option>
+                                <option value="零食">零食</option>
+                                <option value="烘焙">烘焙</option>
+                                <option value="調味料">調味料</option>
+                                <option value="冷凍食品">冷凍食品</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editMinQuantity">最低庫存量 *</label>
+                            <input type="number" id="editMinQuantity" min="1" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editAlertThreshold">預警閾值 *</label>
+                            <input type="number" id="editAlertThreshold" min="1" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editReorderQuantity">建議補貨量 *</label>
+                            <input type="number" id="editReorderQuantity" min="1" step="0.1" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEditAlert()">保存</button>
                 </div>
             </div>
         </div>
@@ -913,6 +971,76 @@
                 }
             } catch (err) {
                 alert('刪除失敗: ' + err.message);
+            }
+        }
+        
+        // 全局變量，用於存儲正在編輯的預警ID
+        let editingAlertId = null;
+
+        // 編輯預警
+        async function editAlert(id) {
+            editingAlertId = id; // 儲存當前編輯的預警ID
+            try {
+                // 從後端獲取預警詳情
+                const response = await fetch(`${API_BASE}/${id}`); // Assumes GET /api/inventory-alerts/{id}
+                const data = await response.json();
+
+                if (data.success) {
+                    const alert = data.alert;
+                    // 填充模態框
+                    document.getElementById('editAlertId').value = alert.id;
+                    document.getElementById('editProductName').value = alert.product_name;
+                    document.getElementById('editBarcode').value = alert.barcode || '';
+                    document.getElementById('editCategory').value = alert.category || '';
+                    document.getElementById('editMinQuantity').value = alert.min_quantity;
+                    document.getElementById('editAlertThreshold').value = alert.alert_threshold;
+                    document.getElementById('editReorderQuantity').value = alert.reorder_quantity;
+
+                    // 顯示模態框
+                    const editModal = new bootstrap.Modal(document.getElementById('editAlertModal'));
+                    editModal.show();
+                } else {
+                    alert('加載預警詳情失敗: ' + data.error);
+                }
+            } catch (err) {
+                alert('加載預警詳情失敗: ' + err.message);
+            }
+        }
+
+        // 保存編輯後的預警
+        async function saveEditAlert() {
+            if (!editingAlertId) return;
+
+            const data = {
+                product_name: document.getElementById('editProductName').value,
+                barcode: document.getElementById('editBarcode').value,
+                category: document.getElementById('editCategory').value,
+                min_quantity: parseFloat(document.getElementById('editMinQuantity').value),
+                alert_threshold: parseFloat(document.getElementById('editAlertThreshold').value),
+                reorder_quantity: parseFloat(document.getElementById('editReorderQuantity').value)
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/${editingAlertId}`, { // Assumes PUT /api/inventory-alerts/{id}
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('預警已更新');
+                    // 隱藏模態框
+                    bootstrap.Modal.getInstance(document.getElementById('editAlertModal')).hide();
+                    // 重新加載預警列表和狀態
+                    loadAlerts();
+                    loadAlertsStatus();
+                } else {
+                    alert('更新失敗: ' + result.error);
+                }
+            } catch (err) {
+                alert('更新失敗: ' + err.message);
             }
         }
 

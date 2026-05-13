@@ -18,6 +18,14 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from reportlab.pdfbase import pdfmetrics, ttfonts
+
+# 註冊中文字體
+try:
+    # 假設微軟正黑體在C:\Windows\Fonts\msyh.ttc
+    pdfmetrics.registerFont(ttfonts.TTFont('MSYH', 'C:\\Windows\\Fonts\\msyh.ttc'))
+except Exception as e:
+    print(f"Failed to register font: {e}. Chinese characters may not display correctly.")
 
 # 創建藍圖
 report_export_bp = Blueprint('report_export', __name__)
@@ -161,10 +169,23 @@ def export_inventory_pdf(food_items, category_stats, total_items, total_quantity
         elements = []
         styles = getSampleStyleSheet()
         
+        # 定義中文字體樣式
+        chinese_normal_style = ParagraphStyle(
+            'ChineseNormal',
+            parent=styles['Normal'],
+            fontName='MSYH'
+        )
+        chinese_heading2_style = ParagraphStyle(
+            'ChineseHeading2',
+            parent=styles['Heading2'],
+            fontName='MSYH'
+        )
+        
         # 標題
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
+            fontName='MSYH',  # 使用中文字體
             fontSize=24,
             textColor=colors.HexColor('#667eea'),
             spaceAfter=30,
@@ -174,11 +195,11 @@ def export_inventory_pdf(food_items, category_stats, total_items, total_quantity
         elements.append(Spacer(1, 0.2*inch))
         
         # 生成日期
-        elements.append(Paragraph(f'生成日期: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', styles['Normal']))
+        elements.append(Paragraph(f'生成日期: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', chinese_normal_style))
         elements.append(Spacer(1, 0.3*inch))
         
         # 統計摘要
-        elements.append(Paragraph('統計摘要', styles['Heading2']))
+        elements.append(Paragraph('統計摘要', chinese_heading2_style))
         summary_data = [
             ['總商品數', str(total_items)],
             ['總庫存量', str(total_quantity)],
@@ -189,7 +210,7 @@ def export_inventory_pdf(food_items, category_stats, total_items, total_quantity
             ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, -1), 'MSYH'), # 使用中文字體
             ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
@@ -198,11 +219,11 @@ def export_inventory_pdf(food_items, category_stats, total_items, total_quantity
         elements.append(Spacer(1, 0.3*inch))
         
         # 分類統計表
-        elements.append(Paragraph('按分類統計', styles['Heading2']))
+        elements.append(Paragraph('按分類統計', chinese_heading2_style))
         category_data = [['分類', '商品數', '庫存量', '庫存值']]
         for category, stats in sorted(category_stats.items()):
             category_data.append([
-                category,
+                Paragraph(category, chinese_normal_style), # 使用中文字體
                 str(stats['count']),
                 str(stats['quantity']),
                 f'${stats["value"]:.2f}'
@@ -213,7 +234,7 @@ def export_inventory_pdf(food_items, category_stats, total_items, total_quantity
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, -1), 'MSYH'), # 使用中文字體
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
@@ -222,12 +243,12 @@ def export_inventory_pdf(food_items, category_stats, total_items, total_quantity
         elements.append(PageBreak())
         
         # 商品詳情表
-        elements.append(Paragraph('商品詳情', styles['Heading2']))
+        elements.append(Paragraph('商品詳情', chinese_heading2_style))
         product_data = [['商品名稱', '分類', '庫存量', '單位價格', '到期日期']]
         for item in food_items:
             product_data.append([
-                item.name,
-                item.category or '-',
+                Paragraph(item.name, chinese_normal_style), # 使用中文字體
+                Paragraph(item.category or '-', chinese_normal_style), # 使用中文字體
                 str(item.quantity),
                 f'${item.unit_price:.2f}' if item.unit_price else '-',
                 item.expiry_date.strftime('%Y-%m-%d') if item.expiry_date else '-'
@@ -238,7 +259,7 @@ def export_inventory_pdf(food_items, category_stats, total_items, total_quantity
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, -1), 'MSYH'), # 使用中文字體
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
@@ -265,19 +286,25 @@ def export_sales_report():
     導出銷售報表
     """
     try:
+        db.session.commit() # Ensure all pending changes are committed
         format_type = request.args.get('format', 'pdf').lower()
         start_date = request.args.get('start_date', None)
         end_date = request.args.get('end_date', None)
         
         # 構建查詢
-        query = InventoryRecord.query.filter_by(operation_type='銷售')
-        
+        query = InventoryRecord.query.filter_by(operation_type='sale')
+
+        today = datetime.now().date() # Get today's date without time
+
         if start_date:
             try:
                 start = datetime.strptime(start_date, '%Y-%m-%d')
                 query = query.filter(InventoryRecord.created_at >= start)
             except:
                 pass
+        else: # If no start_date, default to today's beginning
+            start = datetime.combine(today, datetime.min.time())
+            query = query.filter(InventoryRecord.created_at >= start)
         
         if end_date:
             try:
@@ -285,19 +312,31 @@ def export_sales_report():
                 query = query.filter(InventoryRecord.created_at < end)
             except:
                 pass
+        else: # If no end_date, default to today's end (beginning of tomorrow)
+            end = datetime.combine(today + timedelta(days=1), datetime.min.time())
+            query = query.filter(InventoryRecord.created_at < end)
         
         records = query.order_by(InventoryRecord.created_at.desc()).all()
         
-        # 計算統計信息
-        total_sales = len(records)
-        total_amount = sum(record.total_amount or 0 for record in records)
-        total_discount = sum(record.discount or 0 for record in records)
-        net_amount = total_amount - total_discount
+        # 計算統計信息 (Revised Logic)
+        total_sales_count = len(records)
+        total_gross_amount = 0
+        total_discount_amount = 0
+        total_net_amount = 0
+
+        for record in records:
+            gross_amount = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount = record.total_price or 0
+            discount_amount = gross_amount - net_amount
+
+            total_gross_amount += gross_amount
+            total_discount_amount += discount_amount
+            total_net_amount += net_amount
         
         if format_type == 'excel':
-            return export_sales_excel(records, total_sales, total_amount, total_discount, net_amount)
+            return export_sales_excel(records, total_sales_count, total_gross_amount, total_discount_amount, total_net_amount)
         else:
-            return export_sales_pdf(records, total_sales, total_amount, total_discount, net_amount)
+            return export_sales_pdf(records, total_sales_count, total_gross_amount, total_discount_amount, total_net_amount)
     except Exception as e:
         return jsonify({'error': f'導出失敗: {str(e)}'}), 500
 
@@ -377,7 +416,7 @@ def export_sales_excel(records, total_sales, total_amount, total_discount, net_a
         return jsonify({'error': f'Excel導出失敗: {str(e)}'}), 500
 
 
-def export_sales_pdf(records, total_sales, total_amount, total_discount, net_amount):
+def export_sales_pdf(records, total_sales_count, total_gross_amount, total_discount_amount, total_net_amount):
     """導出銷售報表為PDF"""
     try:
         output = BytesIO()
@@ -385,10 +424,23 @@ def export_sales_pdf(records, total_sales, total_amount, total_discount, net_amo
         elements = []
         styles = getSampleStyleSheet()
         
+        # 定義中文字體樣式 (確保它們已被定義在模塊級別或這裡再次定義)
+        chinese_normal_style = ParagraphStyle(
+            'ChineseNormal',
+            parent=styles['Normal'],
+            fontName='MSYH'
+        )
+        chinese_heading2_style = ParagraphStyle(
+            'ChineseHeading2',
+            parent=styles['Heading2'],
+            fontName='MSYH'
+        )
+
         # 標題
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
+            fontName='MSYH',  # Use Chinese font
             fontSize=24,
             textColor=colors.HexColor('#667eea'),
             spaceAfter=30,
@@ -398,23 +450,23 @@ def export_sales_pdf(records, total_sales, total_amount, total_discount, net_amo
         elements.append(Spacer(1, 0.2*inch))
         
         # 生成日期
-        elements.append(Paragraph(f'生成日期: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', styles['Normal']))
+        elements.append(Paragraph(f'生成日期: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', chinese_normal_style))
         elements.append(Spacer(1, 0.3*inch))
         
         # 統計摘要
-        elements.append(Paragraph('統計摘要', styles['Heading2']))
+        elements.append(Paragraph('統計摘要', chinese_heading2_style))
         summary_data = [
-            ['銷售筆數', str(total_sales)],
-            ['銷售總額', f'${total_amount:.2f}'],
-            ['折扣總額', f'${total_discount:.2f}'],
-            ['淨銷售額', f'${net_amount:.2f}']
+            ['銷售筆數', str(total_sales_count)],
+            ['銷售總額', f'${total_net_amount:.2f}'], # Use net amount as total sales
+            ['折扣總額', f'${total_discount_amount:.2f}'], # Use total discount
+            ['淨銷售額', f'${total_net_amount:.2f}']
         ]
         summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
         summary_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, -1), 'MSYH'), # Use Chinese font
             ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
@@ -423,16 +475,20 @@ def export_sales_pdf(records, total_sales, total_amount, total_discount, net_amo
         elements.append(Spacer(1, 0.3*inch))
         
         # 銷售詳情表
-        elements.append(Paragraph('銷售詳情', styles['Heading2']))
+        elements.append(Paragraph('銷售詳情', chinese_heading2_style))
         sales_data = [['日期', '商品名稱', '分類', '數量', '銷售額', '折扣']]
         for record in records:
+            gross_amount_record = (record.quantity or 0) * (record.unit_price or 0)
+            net_amount_record = record.total_price or 0
+            discount_amount_record = gross_amount_record - net_amount_record
+
             sales_data.append([
                 record.created_at.strftime('%Y-%m-%d %H:%M'),
-                record.product_name,
-                record.category or '-',
+                Paragraph(record.product_name, chinese_normal_style), # Use Chinese font
+                Paragraph(record.category or '-', chinese_normal_style), # Use Chinese font
                 str(record.quantity),
-                f'${record.total_amount:.2f}' if record.total_amount else '-',
-                f'${record.discount:.2f}' if record.discount else '-'
+                f'${net_amount_record:.2f}', # Display net amount for each record
+                f'${discount_amount_record:.2f}' # Display discount for each record
             ])
         
         sales_table = Table(sales_data, colWidths=[1.2*inch, 1.5*inch, 1*inch, 0.8*inch, 1*inch, 0.8*inch])
@@ -440,7 +496,7 @@ def export_sales_pdf(records, total_sales, total_amount, total_discount, net_amo
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, -1), 'MSYH'), # Use Chinese font
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black)

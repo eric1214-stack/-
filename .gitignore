@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Databases
+instance/*.db
+*.db
+
+# Environment variables
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# Static uploads (keep the directory but ignore content)
+src/static/uploads/*
+!src/static/uploads/.gitkeep

@@ -29,6 +29,9 @@ function setupEventListeners() {
     document.getElementById('generateWeeklyBtn').addEventListener('click', generateWeeklyReport);
     document.getElementById('generateMonthlyBtn').addEventListener('click', generateMonthlyReport);
     
+    // 刷新總覽數據按鈕
+    document.getElementById('refreshReportsBtn').addEventListener('click', loadReportsList);
+    
     // 報表對比
     document.getElementById('compareBtn').addEventListener('click', compareReports);
     
@@ -57,7 +60,7 @@ function generateDailyReport() {
         if (data.success) {
             alert('日報表已生成');
             loadReportsList();
-            displayQuickStats(data.report);
+            updateQuickStatsFromGeneratedReport(data.report);
         } else {
             alert('生成報表失敗: ' + (data.error || '未知錯誤'));
         }
@@ -88,7 +91,7 @@ function generateWeeklyReport() {
         if (data.success) {
             alert('週報表已生成');
             loadReportsList();
-            displayQuickStats(data.report);
+            updateQuickStatsFromGeneratedReport(data.report);
         } else {
             alert('生成報表失敗: ' + (data.error || '未知錯誤'));
         }
@@ -119,7 +122,7 @@ function generateMonthlyReport() {
         if (data.success) {
             alert('月報表已生成');
             loadReportsList();
-            displayQuickStats(data.report);
+            updateQuickStatsFromGeneratedReport(data.report);
         } else {
             alert('生成報表失敗: ' + (data.error || '未知錯誤'));
         }
@@ -145,6 +148,14 @@ function loadReportsList() {
                 allReports = data.reports;
                 updateReportsList(data.reports);
                 updateComparisonSelects(data.reports);
+                if (allReports.length > 0) {
+                    displayQuickStatsFromList(allReports[0]); // Display stats from the first report in the list
+                } else {
+                    // Reset quick stats if no reports
+                    document.getElementById('statInventoryTotal').textContent = '0';
+                    document.getElementById('statAnomalyCount').textContent = '0';
+                    document.getElementById('statTotalSales').textContent = '¥0.00';
+                }
             } else {
                 alert('載入報表失敗: ' + (data.error || '未知錯誤'));
             }
@@ -174,17 +185,16 @@ function updateReportsList(reports) {
     let dailyCount = 0, weeklyCount = 0, monthlyCount = 0;
     
     reports.forEach(report => {
-        const row = createReportRow(report);
-        allList.appendChild(row);
+        allList.appendChild(createReportRow(report));
         
         if (report.report_type === '日報表') {
-            dailyList.appendChild(createReportRow(report));
+            dailyList.appendChild(createDailyReportRow(report));
             dailyCount++;
         } else if (report.report_type === '週報表') {
-            weeklyList.appendChild(createReportRow(report));
+            weeklyList.appendChild(createWeeklyReportRow(report));
             weeklyCount++;
         } else if (report.report_type === '月報表') {
-            monthlyList.appendChild(createReportRow(report));
+            monthlyList.appendChild(createMonthlyReportRow(report));
             monthlyCount++;
         }
     });
@@ -196,14 +206,14 @@ function updateReportsList(reports) {
     document.getElementById('monthlyBadge').textContent = monthlyCount;
     
     // 更新空狀態
-    document.getElementById('allEmpty').classList.toggle('hidden-element', reports.length > 0);
-    document.getElementById('dailyEmpty').classList.toggle('hidden-element', dailyCount > 0);
-    document.getElementById('weeklyEmpty').classList.toggle('hidden-element', weeklyCount > 0);
-    document.getElementById('monthlyEmpty').classList.toggle('hidden-element', monthlyCount > 0);
+    document.getElementById('allEmpty').style.display = reports.length > 0 ? 'none' : 'block';
+    document.getElementById('dailyEmpty').style.display = dailyCount > 0 ? 'none' : 'block';
+    document.getElementById('weeklyEmpty').style.display = weeklyCount > 0 ? 'none' : 'block';
+    document.getElementById('monthlyEmpty').style.display = monthlyCount > 0 ? 'none' : 'block';
 }
 
 /**
- * 建立報表行
+ * 建立通用報表行
  */
 function createReportRow(report) {
     const row = document.createElement('tr');
@@ -211,10 +221,10 @@ function createReportRow(report) {
         <td>${report.report_date}</td>
         <td><span class="badge bg-secondary">${report.report_type}</span></td>
         <td>${report.total_items}</td>
-        <td>${report.total_quantity}</td>
+        <td>${report.inventory_total}</td>
         <td><span class="badge bg-danger">${report.expired_items}</span></td>
         <td><span class="badge bg-warning">${report.expiring_items}</span></td>
-        <td>¥${(report.total_sales_amount || 0).toFixed(2)}</td>
+        <td>¥${(report.total_sales || 0).toFixed(2)}</td>
         <td>
             <button class="btn btn-sm btn-outline-primary" onclick="viewReport(${report.report_id})">
                 <i class="bi bi-eye"></i> 查看
@@ -225,31 +235,82 @@ function createReportRow(report) {
 }
 
 /**
+ * 建立日報表行
+ */
+function createDailyReportRow(report) {
+    const row = document.createElement('tr');
+    const sales_count = report.raw_data?.sales_summary?.total_sales_count || 0;
+    row.innerHTML = `
+        <td>${report.report_date}</td>
+        <td>${report.total_items}</td>
+        <td>${report.inventory_total}</td>
+        <td>${sales_count}</td>
+        <td>¥${(report.total_sales || 0).toFixed(2)}</td>
+        <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="viewReport(${report.report_id})">
+                <i class="bi bi-eye"></i> 查看
+            </button>
+        </td>
+    `;
+    return row;
+}
+
+/**
+ * 建立週報表行
+ */
+function createWeeklyReportRow(report) {
+    const row = document.createElement('tr');
+    const sales_count = report.raw_data?.sales_summary?.total_sales_count || 0;
+    row.innerHTML = `
+        <td>${report.report_date}</td>
+        <td>${report.total_items}</td>
+        <td>${report.inventory_total}</td>
+        <td>${sales_count}</td>
+        <td>¥${(report.total_sales || 0).toFixed(2)}</td>
+        <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="viewReport(${report.report_id})">
+                <i class="bi bi-eye"></i> 查看
+            </button>
+        </td>
+    `;
+    return row;
+}
+
+/**
+ * 建立月報表行
+ */
+function createMonthlyReportRow(report) {
+    const row = document.createElement('tr');
+    const sales_count = report.raw_data?.sales_summary?.total_sales_count || 0;
+    row.innerHTML = `
+        <td>${report.report_date}</td>
+        <td>${report.total_items}</td>
+        <td>${report.inventory_total}</td>
+        <td>${sales_count}</td>
+        <td>¥${(report.total_sales || 0).toFixed(2)}</td>
+        <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="viewReport(${report.report_id})">
+                <i class="bi bi-eye"></i> 查看
+            </button>
+        </td>
+    `;
+    return row;
+}
+
+
+/**
  * 查看報表詳情
  */
 function viewReport(reportId) {
-    showLoading('載入報表詳情中...');
-    
-    fetch(`/api/reports/${reportId}`)
-        .then(response => response.json())
-        .then(data => {
-            hideLoading();
-            
-            if (data.success) {
-                currentReport = data.report;
-                displayReportDetail(data.report);
-                
-                // 顯示模態框
-                const modal = new bootstrap.Modal(document.getElementById('reportDetailModal'));
-                modal.show();
-            } else {
-                alert('載入報表失敗: ' + (data.error || '未知錯誤'));
-            }
-        })
-        .catch(error => {
-            hideLoading();
-            alert('載入報表失敗: ' + error.message);
-        });
+    const report = allReports.find(r => r.report_id === reportId);
+    if (report) {
+        currentReport = report;
+        displayReportDetail(report);
+        const modal = new bootstrap.Modal(document.getElementById('reportDetailModal'));
+        modal.show();
+    } else {
+        alert('找不到報表詳情');
+    }
 }
 
 /**
@@ -264,12 +325,12 @@ function displayReportDetail(report) {
                 <h6>庫存統計</h6>
                 <table class="table table-sm">
                     <tr>
-                        <td>商品數</td>
+                        <td>商品總數</td>
                         <td><strong>${report.total_items}</strong></td>
                     </tr>
                     <tr>
-                        <td>庫存量</td>
-                        <td><strong>${report.total_quantity}</strong></td>
+                        <td>在庫數量</td>
+                        <td><strong>${report.inventory_total}</strong></td>
                     </tr>
                 </table>
             </div>
@@ -284,10 +345,6 @@ function displayReportDetail(report) {
                         <td>即期商品</td>
                         <td><span class="badge bg-warning">${report.expiring_items}</span></td>
                     </tr>
-                    <tr>
-                        <td>折扣商品</td>
-                        <td><span class="badge bg-info">${report.discounted_items}</span></td>
-                    </tr>
                 </table>
             </div>
         </div>
@@ -297,16 +354,8 @@ function displayReportDetail(report) {
                 <h6>銷售統計</h6>
                 <table class="table table-sm">
                     <tr>
-                        <td>銷售筆數</td>
-                        <td><strong>${report.total_sales_count}</strong></td>
-                    </tr>
-                    <tr>
-                        <td>銷售數量</td>
-                        <td><strong>${report.total_sales_quantity}</strong></td>
-                    </tr>
-                    <tr>
                         <td>銷售額</td>
-                        <td><strong>¥${(report.total_sales_amount || 0).toFixed(2)}</strong></td>
+                        <td><strong>¥${(report.total_sales || 0).toFixed(2)}</strong></td>
                     </tr>
                 </table>
             </div>
@@ -330,43 +379,37 @@ function displayReportDetail(report) {
         </div>
     `;
     
+    if (report.raw_data) {
+        html += `<h6>原始數據</h6><pre><code>${JSON.stringify(report.raw_data, null, 2)}</code></pre>`;
+    }
+
     document.getElementById('reportDetailContent').innerHTML = html;
 }
 
 /**
- * 顯示快速統計
+ * 顯示來自報表列表的快速統計 (總覽報表)
+ * @param {object} report - 從 /api/reports/list 獲取的報表數據
  */
-function displayQuickStats(report) {
-    let html = `
-        <div class="row g-2">
-            <div class="col-6">
-                <div class="p-2 bg-light rounded">
-                    <strong>商品數</strong>
-                    <div class="h6">${report.inventory_summary.total_items}</div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="p-2 bg-light rounded">
-                    <strong>庫存量</strong>
-                    <div class="h6">${report.inventory_summary.total_quantity}</div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="p-2 bg-light rounded">
-                    <strong>銷售額</strong>
-                    <div class="h6">¥${(report.sales_summary?.total_sales_amount || 0).toFixed(2)}</div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="p-2 bg-light rounded">
-                    <strong>異常數</strong>
-                    <div class="h6">${report.anomaly_summary.total_anomalies}</div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('quickStats').innerHTML = html;
+function displayQuickStatsFromList(report) {
+    document.getElementById('statInventoryTotal').textContent = report.inventory_total || '0';
+    document.getElementById('statAnomalyCount').textContent = report.anomaly_count || '0';
+    document.getElementById('statTotalSales').textContent = `¥${(report.total_sales || 0).toFixed(2)}`;
+}
+
+/**
+ * 更新快速統計，用於處理 generate*Report 函數返回的嵌套結構
+ * @param {object} reportData - 從 /api/reports/daily, /api/reports/weekly, /api/reports/monthly 獲取的報表數據
+ */
+function updateQuickStatsFromGeneratedReport(reportData) {
+    if (reportData.inventory_summary) { // 檢查是否是生成的報表，具有嵌套結構
+        document.getElementById('statInventoryTotal').textContent = reportData.inventory_summary.total_quantity || '0';
+        document.getElementById('statAnomalyCount').textContent = reportData.anomaly_summary.total_anomalies || '0';
+        document.getElementById('statTotalSales').textContent = `¥${(reportData.sales_summary?.total_sales_amount || 0).toFixed(2)}`;
+    } else { // 針對類似 /api/reports/list 返回的扁平結構
+         document.getElementById('statInventoryTotal').textContent = reportData.inventory_total || '0';
+         document.getElementById('statAnomalyCount').textContent = reportData.anomaly_count || '0';
+         document.getElementById('statTotalSales').textContent = `¥${(reportData.total_sales || 0).toFixed(2)}`;
+    }
 }
 
 /**
@@ -411,67 +454,46 @@ function compareReports() {
         return;
     }
     
-    showLoading('對比報表中...');
+    const report1 = allReports.find(r => r.report_id == report1Id);
+    const report2 = allReports.find(r => r.report_id == report2Id);
+
+    if (!report1 || !report2) {
+        alert('找不到要對比的報表');
+        return;
+    }
     
-    fetch(`/api/reports/compare?report1_id=${report1Id}&report2_id=${report2Id}`)
-        .then(response => response.json())
-        .then(data => {
-            hideLoading();
-            
-            if (data.success) {
-                displayComparison(data.comparison);
-            } else {
-                alert('對比失敗: ' + (data.error || '未知錯誤'));
-            }
-        })
-        .catch(error => {
-            hideLoading();
-            alert('對比失敗: ' + error.message);
-        });
+    displayComparison(report1, report2);
 }
 
 /**
  * 顯示對比結果
  */
-function displayComparison(comparison) {
-    const report1 = comparison.report1;
-    const report2 = comparison.report2;
-    const changes = comparison.changes;
+function displayComparison(report1, report2) {
+    const changes = {
+        items_change: report2.total_items - report1.total_items,
+        items_change_rate: (report2.total_items / report1.total_items - 1) * 100,
+        quantity_change: report2.inventory_total - report1.inventory_total,
+        quantity_change_rate: (report2.inventory_total / report1.inventory_total - 1) * 100,
+        sales_change: report2.total_sales - report1.total_sales,
+        sales_change_rate: (report2.total_sales / report1.total_sales - 1) * 100,
+    };
     
     let html = `
         <div class="row mb-3">
             <div class="col-md-6">
-                <h6>報表1: ${report1.report_date}</h6>
+                <h6>報表1: ${report1.report_date} (${report1.report_type})</h6>
                 <table class="table table-sm">
-                    <tr>
-                        <td>商品數</td>
-                        <td>${report1.total_items}</td>
-                    </tr>
-                    <tr>
-                        <td>庫存量</td>
-                        <td>${report1.total_quantity}</td>
-                    </tr>
-                    <tr>
-                        <td>銷售額</td>
-                        <td>¥${(report1.total_sales_amount || 0).toFixed(2)}</td>
-                    </tr>
+                    <tr><td>商品數</td><td>${report1.total_items}</td></tr>
+                    <tr><td>庫存量</td><td>${report1.inventory_total}</td></tr>
+                    <tr><td>銷售額</td><td>¥${(report1.total_sales || 0).toFixed(2)}</td></tr>
                 </table>
             </div>
             <div class="col-md-6">
-                <h6>報表2: ${report2.report_date}</h6>
+                <h6>報表2: ${report2.report_date} (${report2.report_type})</h6>
                 <table class="table table-sm">
-                    <tr>
-                        <td>商品數</td>
-                        <td>${report2.total_items}</td>
-                    </tr>
-                    <tr>
-                        <td>庫存量</td>
-                        <td>${report2.total_quantity}</td>
-                    </tr>
-                    <tr>
-                        <td>銷售額</td>
-                        <td>¥${(report2.total_sales_amount || 0).toFixed(2)}</td>
-                    </tr>
+                    <tr><td>商品數</td><td>${report2.total_items}</td></tr>
+                    <tr><td>庫存量</td><td>${report2.inventory_total}</td></tr>
+                    <tr><td>銷售額</td><td>¥${(report2.total_sales || 0).toFixed(2)}</td></tr>
                 </table>
             </div>
         </div>
@@ -544,17 +566,14 @@ function exportReport() {
     
     csv += '庫存統計\n';
     csv += `商品數,${currentReport.total_items}\n`;
-    csv += `庫存量,${currentReport.total_quantity}\n\n`;
+    csv += `庫存量,${currentReport.inventory_total}\n\n`;
     
     csv += '異常統計\n';
     csv += `過期商品,${currentReport.expired_items}\n`;
-    csv += `即期商品,${currentReport.expiring_items}\n`;
-    csv += `折扣商品,${currentReport.discounted_items}\n\n`;
+    csv += `即期商品,${currentReport.expiring_items}\n\n`;
     
     csv += '銷售統計\n';
-    csv += `銷售筆數,${currentReport.total_sales_count}\n`;
-    csv += `銷售數量,${currentReport.total_sales_quantity}\n`;
-    csv += `銷售額,${currentReport.total_sales_amount}\n`;
+    csv += `銷售額,${currentReport.total_sales}\n`;
     
     // 下載CSV
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

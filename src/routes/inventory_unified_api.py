@@ -5,10 +5,56 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from src.models.food_item import db, FoodItem
+from src.models.inventory_record import InventoryRecord
+
+def _get_potential_discount(item):
+    """Helper function to determine potential discount for an item."""
+    if not item:
+        return None
+    
+    days_left = item.days_remaining
+    if days_left is not None:
+        if 0 <= days_left <= 3:
+            return {'rate': 0.5, 'name': '緊急折扣'}
+        elif 4 <= days_left <= 7:
+            return {'rate': 0.3, 'name': '即期折扣'}
+        elif 8 <= days_left <= 30:
+            return {'rate': 0.1, 'name': '促銷折扣'}
+    return None
 
 inventory_unified_bp = Blueprint('inventory_unified', __name__, url_prefix='/api/inventory')
 
 # ==================== 庫存查詢 ====================
+@inventory_unified_bp.route('/item-details', methods=['GET'])
+def get_item_details():
+    """Get item details by barcode and expiry date for discount check."""
+    try:
+        barcode = request.args.get('barcode')
+        expiry_date_str = request.args.get('expiry_date')
+
+        if not barcode or not expiry_date_str:
+            return jsonify({'success': False, 'error': 'Barcode and expiry date are required'}), 400
+
+        try:
+            expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid date format, please use YYYY-MM-DD'}), 400
+
+        item = FoodItem.query.filter_by(barcode=barcode, expiry_date=expiry_date).first()
+
+        if not item:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+        
+        potential_discount = _get_potential_discount(item)
+
+        return jsonify({
+            'success': True,
+            'item': item.to_dict(),
+            'potential_discount': potential_discount
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @inventory_unified_bp.route('/items', methods=['GET'])
 def get_inventory_items():
@@ -108,6 +154,22 @@ def update_item(item_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@inventory_unified_bp.route('/items/<int:item_id>', methods=['DELETE'])
+def delete_item(item_id):
+    """刪除商品"""
+    try:
+        item = FoodItem.query.get(item_id)
+        if not item:
+            return jsonify({'success': False, 'error': '商品不存在'}), 404
+        
+        db.session.delete(item)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '商品已刪除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ==================== 銷售結帳 ====================
 
 @inventory_unified_bp.route('/checkout', methods=['POST'])
@@ -118,6 +180,7 @@ def checkout():
         barcode = data.get('barcode')
         expiry_date_str = data.get('expiry_date')
         quantity = float(data.get('quantity', 1))
+        apply_discount = data.get('apply_discount', False)
 
         if not barcode or not expiry_date_str:
             return jsonify({'success': False, 'error': '條碼和效期為必填項'}), 400
@@ -130,43 +193,59 @@ def checkout():
         item = FoodItem.query.filter_by(barcode=barcode, expiry_date=expiry_date).first()
         
         if not item:
-            return jsonify({'success': False, 'error': '商品不存在'}), 404
+            item_by_barcode = FoodItem.query.filter_by(barcode=barcode).first()
+            if not item_by_barcode:
+                return jsonify({'success': False, 'error': '條碼不存在'}), 404
+            else:
+                 return jsonify({'success': False, 'error': f'條碼正確，但效期 {expiry_date_str} 的商品不存在'}), 404
+
+        if item.days_remaining < 0:
+            return jsonify({'success': False, 'error': '商品已過期，無法銷售'}), 400
         
-        # 檢查是否過期
-        if item.status == 'expired':
-            return jsonify({
-                'success': False,
-                'error': '商品已過期，無法銷售',
-                'item_id': item.id
-            }), 400
-        
-        # 檢查庫存
         if item.quantity < quantity:
-            return jsonify({
-                'success': False,
-                'error': f'庫存不足，當前庫存: {item.quantity}',
-                'item_id': item.id
-            }), 400
+            return jsonify({'success': False, 'error': f'庫存不足，當前庫存: {item.quantity}'}), 400
         
-        # 計算折扣
+        potential_discount = _get_potential_discount(item)
+        
         discount_rate = 0
-        if item.status == 'soon':  # 即期品
-            discount_rate = 0.3  # 30% 折扣
+        if apply_discount and potential_discount:
+            discount_rate = potential_discount['rate']
         
-        # 計算銷售金額
         unit_price = item.unit_price or 0
         original_amount = unit_price * quantity
         discount_amount = original_amount * discount_rate
         final_amount = original_amount - discount_amount
         
-        # 更新庫存
         item.quantity -= quantity
         if item.quantity == 0:
             item.item_status = '已售'
+        
+        outbound_record = InventoryRecord.create_outbound_record(
+            food_item_id=item.id,
+            barcode=item.barcode,
+            product_name=item.name,
+            category=item.category,
+            quantity=quantity,
+            unit=item.unit,
+            unit_price=item.unit_price,
+            discount_rate=discount_rate,
+            storage_location=item.storage_location,
+            storage_condition=item.storage_condition,
+            expiry_date=item.expiry_date,
+            operator='System',
+            notes=f'銷售折扣: {discount_rate*100:.0f}%',
+            operation_type='sale'
+        )
+        db.session.add(outbound_record)
+
         item.updated_at = datetime.now()
         db.session.commit()
         
-        return jsonify({
+        warning_message = None
+        if unit_price == 0 and quantity > 0:
+            warning_message = '商品單價為0，銷售額不會計入。'
+
+        response_data = {
             'success': True,
             'message': '結帳成功',
             'item_id': item.id,
@@ -174,10 +253,15 @@ def checkout():
             'unit_price': unit_price,
             'original_amount': original_amount,
             'discount_rate': discount_rate,
-            'discount_amount': final_amount,
+            'discount_amount': discount_amount,
+            'final_amount': final_amount,
             'remaining_quantity': item.quantity,
-            'is_expiring_soon': item.status == 'soon'
-        })
+            'potential_discount': potential_discount
+        }
+        if warning_message:
+            response_data['warning'] = warning_message
+
+        return jsonify(response_data)
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

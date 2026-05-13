@@ -11,7 +11,7 @@ db = SQLAlchemy()
 class FoodItem(db.Model):
     """食品資料模型"""
     id = db.Column(db.Integer, primary_key=True)
-    barcode = db.Column(db.String(50), index=True)
+    barcode = db.Column(db.String(50), index=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     expiry_date = db.Column(db.Date, nullable=False)
     batch_number = db.Column(db.String(50))

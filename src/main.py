@@ -17,6 +17,7 @@ from flask import Flask, render_template, send_from_directory, make_response, Re
 from flask_sqlalchemy import SQLAlchemy  
 from flask_cors import CORS  
 from src.models.food_item import db
+from src.models.inventory_audit import InventoryAudit
 from src.routes.upload import upload_bp
 from src.routes.bluetooth_api import bluetooth_api
 from src.routes.inventory_unified_api import inventory_unified_bp

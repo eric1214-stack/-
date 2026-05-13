@@ -2,10 +2,12 @@
 盤點報表API - 使用統一的FoodItem表
 """
 
+import json
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta, date
 from src.models.food_item import db, FoodItem
 from src.models.inventory_record import InventoryRecord
+from src.models.inventory_audit import InventoryAudit
 
 reports_api_bp = Blueprint('reports_api', __name__, url_prefix='/api/reports')
 
@@ -13,11 +15,11 @@ reports_api_bp = Blueprint('reports_api', __name__, url_prefix='/api/reports')
 
 @reports_api_bp.route('/daily', methods=['POST'])
 def generate_daily_report():
-    """生成日報表"""
+    """生成日報表並存檔"""
     try:
-        report_date = request.json.get('report_date', date.today().isoformat())
-        
-        # 統計當日數據
+        report_date_str = request.json.get('report_date', date.today().isoformat())
+        report_date = datetime.strptime(report_date_str, '%Y-%m-%d').date()
+
         all_items = FoodItem.query.all()
         
         total_items = len(all_items)
@@ -25,164 +27,153 @@ def generate_daily_report():
         sold = len([i for i in all_items if i.item_status == '已售'])
         removed = len([i for i in all_items if i.item_status == '下架'])
         
-        today = date.today()
-        expired = len([i for i in all_items if i.expiry_date < today and i.item_status == '在庫'])
-        expiring_soon = len([i for i in all_items if today <= i.expiry_date <= today + timedelta(days=30) and i.item_status == '在庫'])
+        expired = len([i for i in all_items if i.expiry_date and i.expiry_date < report_date and i.item_status == '在庫'])
+        expiring_soon = len([i for i in all_items if i.expiry_date and report_date <= i.expiry_date <= report_date + timedelta(days=30) and i.item_status == '在庫'])
         
-        return jsonify({
-            'success': True,
-            'report': {
-                'report_date': report_date,
-                'report_type': '日報表',
-                'inventory_summary': {
-                    'total_items': total_items,
-                    'in_stock': in_stock,
-                    'sold': sold,
-                    'removed': removed
-                },
-                'anomaly_summary': {
-                    'expired_items': expired,
-                    'expiring_items': expiring_soon,
-                    'total_anomalies': expired + expiring_soon
-                }
-            }
-        })
+        sales_records = InventoryRecord.query.filter(
+            InventoryRecord.operation_type.in_(['sale', '銷售']),
+            db.func.date(InventoryRecord.record_date) == report_date
+        ).all()
+        total_sales = sum(r.total_price for r in sales_records if r.total_price is not None)
+
+        report_data = {
+            'report_date': report_date.isoformat(),
+            'report_type': '日報表',
+            'inventory_summary': {'total_items': total_items, 'in_stock': in_stock, 'sold': sold, 'removed': removed},
+            'anomaly_summary': {'expired_items': expired, 'expiring_items': expiring_soon, 'total_anomalies': expired + expiring_soon},
+            'sales_summary': {'total_sales': total_sales}
+        }
+
+        new_audit = InventoryAudit(
+            report_date=report_date,
+            report_type='日報表',
+            total_items=total_items,
+            in_stock_items=in_stock,
+            sold_items=sold,
+            removed_items=removed,
+            expired_items=expired,
+            expiring_soon_items=expiring_soon,
+            total_sales_amount=total_sales,
+            raw_data=json.dumps(report_data)
+        )
+        
+        db.session.add(new_audit)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'report': new_audit.to_dict()})
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @reports_api_bp.route('/weekly', methods=['POST'])
 def generate_weekly_report():
-    """生成週報表"""
+    """生成週報表並存檔"""
     try:
-        # 統計過去7天數據
+        today = date.today()
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+
         all_items = FoodItem.query.all()
         
         total_items = len(all_items)
         in_stock = len([i for i in all_items if i.item_status == '在庫'])
-        sold = len([i for i in all_items if i.item_status == '已售'])
         
-        today = date.today()
-        expired = len([i for i in all_items if i.expiry_date < today and i.item_status == '在庫'])
+        # Weekly specific stats
+        sold_records_weekly = InventoryRecord.query.filter(
+            InventoryRecord.operation_type.in_(['sale', '銷售']),
+            db.func.date(InventoryRecord.record_date).between(start_of_week, end_of_week)
+        ).all()
+        sold_weekly = sum(r.quantity for r in sold_records_weekly)
+        total_sales_weekly = sum(r.total_price for r in sold_records_weekly if r.total_price is not None)
+
+        expired = len([i for i in all_items if i.expiry_date and i.expiry_date < today and i.item_status == '在庫'])
         
-        # 按分類統計
-        categories = {}
-        for item in all_items:
-            cat = item.category or '其他'
-            if cat not in categories:
-                categories[cat] = {'count': 0, 'quantity': 0}
-            categories[cat]['count'] += 1
-            categories[cat]['quantity'] += item.quantity
+        report_data = {
+            'report_type': '週報表',
+            'period': f'{start_of_week.isoformat()} 至 {end_of_week.isoformat()}',
+            'inventory_summary': {'total_items': total_items, 'in_stock': in_stock, 'sold': sold_weekly},
+            'sales_summary': {'total_sales': total_sales_weekly},
+            'anomaly_summary': {'expired_items': expired}
+        }
+
+        new_audit = InventoryAudit(
+            report_date=today,
+            report_type='週報表',
+            total_items=total_items,
+            in_stock_items=in_stock,
+            sold_items=sold_weekly,
+            expired_items=expired,
+            total_sales_amount=total_sales_weekly,
+            raw_data=json.dumps(report_data)
+        )
         
-        return jsonify({
-            'success': True,
-            'report': {
-                'report_type': '週報表',
-                'period': f'{(today - timedelta(days=7)).isoformat()} 至 {today.isoformat()}',
-                'inventory_summary': {
-                    'total_items': total_items,
-                    'in_stock': in_stock,
-                    'sold': sold
-                },
-                'category_breakdown': [
-                    {'category': cat, 'count': data['count'], 'quantity': data['quantity']}
-                    for cat, data in categories.items()
-                ],
-                'anomaly_summary': {
-                    'expired_items': expired
-                }
-            }
-        })
+        db.session.add(new_audit)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'report': new_audit.to_dict()})
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @reports_api_bp.route('/monthly', methods=['POST'])
 def generate_monthly_report():
-    """生成月報表"""
+    """生成月報表並存檔"""
     try:
-        # 統計過去30天數據
+        today = date.today()
+        start_of_month = today.replace(day=1)
+        
         all_items = FoodItem.query.all()
         
         total_items = len(all_items)
         in_stock = len([i for i in all_items if i.item_status == '在庫'])
-        sold = len([i for i in all_items if i.item_status == '已售'])
+
+        sold_records_monthly = InventoryRecord.query.filter(
+            InventoryRecord.operation_type.in_(['sale', '銷售']),
+            db.func.date(InventoryRecord.record_date) >= start_of_month
+        ).all()
+        sold_monthly = sum(r.quantity for r in sold_records_monthly)
+        total_sales_monthly = sum(r.total_price for r in sold_records_monthly if r.total_price is not None)
+
+        expired = len([i for i in all_items if i.expiry_date and i.expiry_date < today and i.item_status == '在庫'])
         
-        today = date.today()
-        expired = len([i for i in all_items if i.expiry_date < today and i.item_status == '在庫'])
+        report_data = {
+            'report_type': '月報表',
+            'period': f'{start_of_month.isoformat()} 至 {today.isoformat()}',
+            'inventory_summary': {'total_items': total_items, 'in_stock': in_stock, 'sold': sold_monthly},
+            'sales_summary': {'total_sales': total_sales_monthly},
+            'anomaly_summary': {'expired_items': expired}
+        }
         
-        # 按分類統計
-        categories = {}
-        for item in all_items:
-            cat = item.category or '其他'
-            if cat not in categories:
-                categories[cat] = {'count': 0, 'quantity': 0, 'sales': 0}
-            categories[cat]['count'] += 1
-            categories[cat]['quantity'] += item.quantity
-            if item.item_status == '已售':
-                categories[cat]['sales'] += item.unit_price * item.quantity
+        new_audit = InventoryAudit(
+            report_date=today,
+            report_type='月報表',
+            total_items=total_items,
+            in_stock_items=in_stock,
+            sold_items=sold_monthly,
+            expired_items=expired,
+            total_sales_amount=total_sales_monthly,
+            raw_data=json.dumps(report_data)
+        )
         
-        return jsonify({
-            'success': True,
-            'report': {
-                'report_type': '月報表',
-                'period': f'{(today - timedelta(days=30)).isoformat()} 至 {today.isoformat()}',
-                'inventory_summary': {
-                    'total_items': total_items,
-                    'in_stock': in_stock,
-                    'sold': sold
-                },
-                'category_breakdown': [
-                    {
-                        'category': cat,
-                        'count': data['count'],
-                        'quantity': data['quantity'],
-                        'sales': data['sales']
-                    }
-                    for cat, data in categories.items()
-                ],
-                'anomaly_summary': {
-                    'expired_items': expired
-                }
-            }
-        })
+        db.session.add(new_audit)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'report': new_audit.to_dict()})
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==================== 報表查詢 ====================
 
 @reports_api_bp.route('/list', methods=['GET'])
 def get_reports_list():
-    """獲取報表列表"""
+    """獲取歷史報表列表"""
     try:
-        today = date.today()
-        
-        # 獲取所有商品
-        all_items = FoodItem.query.all()
-        
-        # 計算庫存統計
-        total_items = len(all_items)
-        total_quantity = sum(item.quantity for item in all_items if item.quantity)
-        expired_items = len([i for i in all_items if i.expiry_date and i.expiry_date < today and i.item_status == '在庫'])
-        expiring_items = len([i for i in all_items if i.expiry_date and today <= i.expiry_date <= today + timedelta(days=30) and i.item_status == '在庫'])
-        
-        # 計算總銷售額
-        sales_records = InventoryRecord.query.filter_by(operation_type='銷售').all()
-        total_sales_amount = sum(r.total_amount for r in sales_records if r.total_amount)
-        
-        # 因為沒有報表歷史記錄，這裡我們創建一個即時的總覽報表
-        summary_report = {
-            'report_id': 1,
-            'report_date': today.isoformat(),
-            'report_type': '總覽報表',
-            'total_items': total_items,
-            'total_quantity': total_quantity,
-            'expired_items': expired_items,
-            'expiring_items': expiring_items,
-            'total_sales_amount': total_sales_amount
-        }
+        reports = InventoryAudit.query.order_by(InventoryAudit.report_date.desc()).all()
         
         return jsonify({
             'success': True,
-            'reports': [summary_report]
+            'reports': [r.to_dict() for r in reports]
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
